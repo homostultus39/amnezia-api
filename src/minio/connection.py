@@ -17,8 +17,3 @@ def get_minio_client() -> Minio:
             secure=settings.minio_secure,
         )
     return _minio_client
-
-
-
-
-

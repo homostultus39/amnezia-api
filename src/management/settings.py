@@ -60,6 +60,14 @@ class Settings(BaseSettings):
         encoded_password = quote_plus(self.postgres_password)
         return f"postgresql+psycopg2://{self.postgres_user}:{encoded_password}@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"
 
+    @property
+    def cookie_secure(self) -> bool:
+        return not self.development
+
+    @property
+    def cookie_samesite(self) -> str:
+        return "lax" if self.development else "strict"
+
     @field_validator('available_protocols', mode='before')
     @classmethod
     def parse_protocols(cls, v):

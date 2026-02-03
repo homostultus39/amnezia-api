@@ -5,7 +5,8 @@ from redis.exceptions import RedisError
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 
-from src.api.v1.auth.schemas import LoginRequest, TokenResponse, RefreshRequest, LogoutRequest
+from management.settings import get_settings
+from src.api.v1.auth.schemas import LoginRequest, TokenResponse
 from src.api.v1.deps.exceptions.auth import invalid_credentials, invalid_token
 from src.api.v1.deps.middlewares.auth import bearer_scheme, get_current_admin
 from src.database.connection import SessionDep
@@ -20,9 +21,10 @@ from src.management.security import (
 )
 from src.redis.client import RedisClient
 
+
 router = APIRouter()
 logger = configure_logger("Authorization", "magenta")
-
+settings = get_settings()
 
 @router.post("/login", response_model=TokenResponse)
 async def login(
@@ -53,8 +55,8 @@ async def login(
             key="refresh_token",
             value=refresh_token,
             httponly=True,
-            secure=True,
-            samesite="lax",
+            secure=settings.cookie_secure,
+            samesite=settings.cookie_samesite,
             max_age=get_token_ttl(refresh_token),
         )
 
@@ -81,7 +83,6 @@ async def login(
 async def refresh(
     session: SessionDep,
     response: Response,
-    payload: RefreshRequest,
     refresh_token_cookie: str | None = Cookie(None, alias="refresh_token"),
 ) -> TokenResponse:
     """
@@ -89,7 +90,7 @@ async def refresh(
     Refresh token is read from httpOnly cookie (or request body for backward compatibility).
     Blacklisted or invalid tokens are rejected.
     """
-    token = refresh_token_cookie or payload.refresh_token
+    token = refresh_token_cookie
 
     if not token:
         raise invalid_token()
@@ -128,8 +129,8 @@ async def refresh(
             key="refresh_token",
             value=new_refresh_token,
             httponly=True,
-            secure=True,
-            samesite="lax",
+            secure=settings.cookie_secure,
+            samesite=settings.cookie_samesite,
             max_age=get_token_ttl(new_refresh_token),
         )
 
@@ -165,7 +166,6 @@ async def refresh(
 @router.post("/logout")
 async def logout(
     response: Response,
-    payload: LogoutRequest,
     credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
     current_admin: AdminUserModel = Depends(get_current_admin),
     refresh_token_cookie: str | None = Cookie(None, alias="refresh_token"),
@@ -185,7 +185,7 @@ async def logout(
             except (ExpiredSignatureError, InvalidTokenError):
                 pass
 
-        refresh_token = refresh_token_cookie or payload.refresh_token
+        refresh_token = refresh_token_cookie
         if refresh_token:
             try:
                 ttl = get_token_ttl(refresh_token)
@@ -193,7 +193,12 @@ async def logout(
             except (ExpiredSignatureError, InvalidTokenError):
                 pass
 
-        response.delete_cookie(key="refresh_token", httponly=True, secure=True, samesite="lax")
+        response.delete_cookie(
+            key="refresh_token",
+            httponly=True,
+            secure=settings.cookie_secure,
+            samesite=settings.cookie_samesite,
+        )
 
         logger.info(f"User {current_admin.username} logged out successfully")
         return {"status": "logged_out"}

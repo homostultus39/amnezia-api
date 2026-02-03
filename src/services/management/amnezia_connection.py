@@ -21,11 +21,18 @@ class AmneziaConnection:
         full_cmd = ["docker", "exec", self.container_name, "sh", "-c", cmd]
         logger.debug(f"Executing: {' '.join(full_cmd)}")
 
-        process = await asyncio.create_subprocess_exec(
-            *full_cmd,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-        )
+        try:
+            process = await asyncio.create_subprocess_exec(
+                *full_cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+        except FileNotFoundError:
+            logger.error("Docker executable not found. Ensure Docker is installed in the API container.")
+            raise DockerError("Docker executable not found")
+        except Exception as exc:
+            logger.error(f"Failed to initiate docker command: {exc}")
+            raise DockerError(f"Docker command initiation failed: {exc}")
 
         stdout, stderr = await process.communicate()
         stdout_decoded = stdout.decode().strip()
