@@ -61,13 +61,13 @@ class Settings(BaseSettings):
     
     @field_validator("available_protocols", mode="before")
     @classmethod
-    def split_comma_separated_string(cls, v: Union[str, list[str]]) -> list[str]:
+    def split_comma_separated_string(cls, v: Union[str, list[str]]):
         if isinstance(v, str):
             return [item.strip() for item in v.split(",") if item.strip()]
         if isinstance(v, list):
             return v
         return []
-        
+
 @lru_cache
 def get_settings():
     return Settings()
