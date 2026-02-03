@@ -51,5 +51,3 @@ async def get_current_admin(
         raise inactive_user()
 
     return admin
-
-

@@ -9,7 +9,6 @@ from src.api.v1.deps.middlewares.auth import get_current_admin
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    await init_database()
     yield
 
 app = FastAPI(

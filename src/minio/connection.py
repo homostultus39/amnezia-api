@@ -19,3 +19,6 @@ def get_minio_client() -> Minio:
     return _minio_client
 
 
+
+
+

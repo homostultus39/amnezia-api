@@ -3,7 +3,7 @@ import uuid
 from enum import Enum
 from datetime import datetime
 from sqlalchemy.orm import mapped_column, Mapped, relationship
-from sqlalchemy import func, BigInteger, String, DateTime, Boolean, UUID, ForeignKey, JSON
+from sqlalchemy import func, String, DateTime, Boolean, UUID, ForeignKey, JSON
 
 from src.database.base import Base
 
@@ -33,14 +33,14 @@ class UserStatus(Enum):
     REVOKED = "revoked"
 
 class AdminUserModel(Base, UUIDMixin, TimestampMixin):
-    __table_name__ = "admins"
+    __tablename__ = "admins"
 
     username: Mapped[str] = mapped_column(String(255), index=True, unique=True, nullable=False)
     pwd_hash: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
     user_status: Mapped[UserStatus] = mapped_column(String(50), default=UserStatus.ACTIVE.value, nullable=False)
 
 class ProtocolModel(Base, UUIDMixin):
-    __table_name__ = "protocols"
+    __tablename__ = "protocols"
     name: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
 
 class ClientModel(Base, UUIDMixin, TimestampMixin):
