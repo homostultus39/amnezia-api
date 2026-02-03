@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, Query, status
 from sqlalchemy.exc import SQLAlchemyError
 
-from src.api.v1.clients.crud.logger import logger
+from src.api.v1.clients.logger import logger
 from src.api.v1.clients.schemas import ClientResponse
 from src.api.v1.deps.exceptions.clients import protocol_not_supported
 from src.database.connection import SessionDep

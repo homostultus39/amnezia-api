@@ -3,7 +3,7 @@ from uuid import UUID
 from fastapi import APIRouter, HTTPException, Query, status
 from sqlalchemy.exc import SQLAlchemyError
 
-from src.api.v1.clients.crud.logger import logger
+from src.api.v1.clients.logger import logger
 from src.api.v1.clients.schemas import DeleteClientResponse
 from src.api.v1.deps.exceptions.clients import peer_not_found, protocol_not_supported
 from src.database.connection import SessionDep

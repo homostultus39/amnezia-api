@@ -4,7 +4,7 @@ from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 
-from src.api.v1.clients.crud.logger import logger
+from src.api.v1.clients.logger import logger
 from src.api.v1.clients.schemas import UpdateClientRequest, UpdateClientResponse
 from src.api.v1.deps.exceptions.clients import peer_not_found
 from src.database.connection import SessionDep

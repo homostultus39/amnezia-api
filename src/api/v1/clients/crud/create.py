@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, status
 from sqlalchemy.exc import SQLAlchemyError
 
-from src.api.v1.clients.crud.logger import logger
+from src.api.v1.clients.logger import logger
 from src.api.v1.clients.schemas import CreateClientRequest, CreateClientResponse
 from src.api.v1.deps.exceptions.clients import (
     config_generation_failed,

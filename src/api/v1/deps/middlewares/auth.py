@@ -5,6 +5,7 @@ from sqlalchemy import select
 
 from src.api.v1.deps.exceptions.auth import invalid_token, inactive_user
 from src.database.connection import SessionDep
+from src.database.management.operations.admin import get_admin_user_by_username
 from src.database.models import AdminUserModel, UserStatus
 from src.management.security import decode_token
 from src.redis.client import RedisClient
@@ -25,9 +26,6 @@ async def get_current_admin(
     if await redis_client.is_token_blacklisted(token):
         raise invalid_token()
 
-    if not await redis_client.is_token_active(token, "access"):
-        raise invalid_token()
-
     try:
         payload = decode_token(token)
     except (ExpiredSignatureError, InvalidTokenError):
@@ -40,10 +38,7 @@ async def get_current_admin(
     if not username:
         raise invalid_token()
 
-    result = await session.execute(
-        select(AdminUserModel).where(AdminUserModel.username == username)
-    )
-    admin = result.scalar_one_or_none()
+    admin = await get_admin_user_by_username(session, username)
     if not admin:
         raise invalid_token()
 
