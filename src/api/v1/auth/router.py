@@ -5,7 +5,7 @@ from redis.exceptions import RedisError
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 
-from management.settings import get_settings
+from src.management.settings import get_settings
 from src.api.v1.auth.schemas import LoginRequest, TokenResponse
 from src.api.v1.deps.exceptions.auth import invalid_credentials, invalid_token
 from src.api.v1.deps.middlewares.auth import bearer_scheme, get_current_admin
