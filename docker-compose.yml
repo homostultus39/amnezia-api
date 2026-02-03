@@ -1,3 +1,4 @@
+version: '3.2' # deprecated, указал, чтоб докер на впске не ругался
 services:
   postgres:
     image: postgres:16-alpine
