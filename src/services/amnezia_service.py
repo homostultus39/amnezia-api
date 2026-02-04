@@ -419,13 +419,6 @@ class AmneziaService(BaseProtocolService):
         default_config = JunkPacketConfig()
 
         params = {
-            "Jc": str(default_config.jc),
-            "Jmin": str(default_config.jmin),
-            "Jmax": str(default_config.jmax),
-            "S1": str(default_config.s1),
-            "S2": str(default_config.s2),
-            "S3": str(default_config.s3),
-            "S4": str(default_config.s4),
             "H1": str(default_config.h1),
             "H2": str(default_config.h2),
             "H3": str(default_config.h3),
@@ -435,16 +428,16 @@ class AmneziaService(BaseProtocolService):
             "I3": str(default_config.i3),
             "I4": str(default_config.i4),
             "I5": str(default_config.i5),
+            "Jc": str(default_config.jc),
+            "Jmin": str(default_config.jmin),
+            "Jmax": str(default_config.jmax),
+            "S1": str(default_config.s1),
+            "S2": str(default_config.s2),
+            "S3": str(default_config.s3),
+            "S4": str(default_config.s4),
         }
 
         param_mapping = {
-            "Jc": r"^Jc\s*=\s*(.+)$",
-            "Jmin": r"^Jmin\s*=\s*(.+)$",
-            "Jmax": r"^Jmax\s*=\s*(.+)$",
-            "S1": r"^S1\s*=\s*(.+)$",
-            "S2": r"^S2\s*=\s*(.+)$",
-            "S3": r"^S3\s*=\s*(.+)$",
-            "S4": r"^S4\s*=\s*(.+)$",
             "H1": r"^H1\s*=\s*(.+)$",
             "H2": r"^H2\s*=\s*(.+)$",
             "H3": r"^H3\s*=\s*(.+)$",
@@ -454,6 +447,13 @@ class AmneziaService(BaseProtocolService):
             "I3": r"^I3\s*=\s*(.+)$",
             "I4": r"^I4\s*=\s*(.+)$",
             "I5": r"^I5\s*=\s*(.+)$",
+            "Jc": r"^Jc\s*=\s*(.+)$",
+            "Jmin": r"^Jmin\s*=\s*(.+)$",
+            "Jmax": r"^Jmax\s*=\s*(.+)$",
+            "S1": r"^S1\s*=\s*(.+)$",
+            "S2": r"^S2\s*=\s*(.+)$",
+            "S3": r"^S3\s*=\s*(.+)$",
+            "S4": r"^S4\s*=\s*(.+)$",
         }
 
         extracted_count = 0
