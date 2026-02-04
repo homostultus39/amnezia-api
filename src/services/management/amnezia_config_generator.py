@@ -70,6 +70,7 @@ class AmneziaConfigGenerator:
             server_endpoint=server_endpoint,
             server_port=server_port,
             awg_params=awg_params,
+            mtu=mtu,
         )
 
         last_config = OrderedDict()
@@ -151,11 +152,13 @@ class AmneziaConfigGenerator:
         server_endpoint: str,
         server_port: int,
         awg_params: dict,
+        mtu: str = "1376",
     ) -> str:
         return (
             "[Interface]\n"
             f"Address = {client_ip}/32\n"
             "DNS = $PRIMARY_DNS, $SECONDARY_DNS\n"
+            f"MTU = {mtu}\n"
             f"PrivateKey = {client_private_key}\n"
             f"Jc = {awg_params.get('Jc', '')}\n"
             f"Jmin = {awg_params.get('Jmin', '')}\n"

@@ -416,63 +416,50 @@ class AmneziaService(BaseProtocolService):
             logger.warning(f"Failed to delete config from MinIO: {exc}")
 
     def _extract_awg_params(self, wg_config: str) -> dict:
-        default_config = JunkPacketConfig()
-
         params = {
-            "H1": str(default_config.h1),
-            "H2": str(default_config.h2),
-            "H3": str(default_config.h3),
-            "H4": str(default_config.h4),
-            "I1": str(default_config.i1),
-            "I2": str(default_config.i2),
-            "I3": str(default_config.i3),
-            "I4": str(default_config.i4),
-            "I5": str(default_config.i5),
-            "Jc": str(default_config.jc),
-            "Jmin": str(default_config.jmin),
-            "Jmax": str(default_config.jmax),
-            "S1": str(default_config.s1),
-            "S2": str(default_config.s2),
-            "S3": str(default_config.s3),
-            "S4": str(default_config.s4),
+            "H1": "",
+            "H2": "",
+            "H3": "",
+            "H4": "",
+            "I1": "",
+            "I2": "",
+            "I3": "",
+            "I4": "",
+            "I5": "",
+            "Jc": "5",
+            "Jmin": "10",
+            "Jmax": "50",
+            "S1": "0",
+            "S2": "0",
+            "S3": "0",
+            "S4": "0",
         }
 
         param_mapping = {
-            "H1": r"^H1\s*=\s*(.+)$",
-            "H2": r"^H2\s*=\s*(.+)$",
-            "H3": r"^H3\s*=\s*(.+)$",
-            "H4": r"^H4\s*=\s*(.+)$",
-            "I1": r"^I1\s*=\s*(.+)$",
-            "I2": r"^I2\s*=\s*(.+)$",
-            "I3": r"^I3\s*=\s*(.+)$",
-            "I4": r"^I4\s*=\s*(.+)$",
-            "I5": r"^I5\s*=\s*(.+)$",
-            "Jc": r"^Jc\s*=\s*(.+)$",
-            "Jmin": r"^Jmin\s*=\s*(.+)$",
-            "Jmax": r"^Jmax\s*=\s*(.+)$",
-            "S1": r"^S1\s*=\s*(.+)$",
-            "S2": r"^S2\s*=\s*(.+)$",
-            "S3": r"^S3\s*=\s*(.+)$",
-            "S4": r"^S4\s*=\s*(.+)$",
+            "H1": r"^\s*H1\s*=\s*(.+)$",
+            "H2": r"^\s*H2\s*=\s*(.+)$",
+            "H3": r"^\s*H3\s*=\s*(.+)$",
+            "H4": r"^\s*H4\s*=\s*(.+)$",
+            "I1": r"^\s*I1\s*=\s*(.+)$",
+            "I2": r"^\s*I2\s*=\s*(.+)$",
+            "I3": r"^\s*I3\s*=\s*(.+)$",
+            "I4": r"^\s*I4\s*=\s*(.+)$",
+            "I5": r"^\s*I5\s*=\s*(.+)$",
+            "Jc": r"^\s*Jc\s*=\s*(.+)$",
+            "Jmin": r"^\s*Jmin\s*=\s*(.+)$",
+            "Jmax": r"^\s*Jmax\s*=\s*(.+)$",
+            "S1": r"^\s*S1\s*=\s*(.+)$",
+            "S2": r"^\s*S2\s*=\s*(.+)$",
+            "S3": r"^\s*S3\s*=\s*(.+)$",
+            "S4": r"^\s*S4\s*=\s*(.+)$",
         }
 
         extracted_count = 0
         for key, pattern in param_mapping.items():
             match = re.search(pattern, wg_config, flags=re.MULTILINE)
             if match:
-                value = match.group(1).strip()
-
-                if key in ["H1", "H2", "H3", "H4"]:
-                    if "-" in value:
-                        params[key] = value
-                    else:
-                        first_value = int(value)
-                        second_value = random.randint(first_value, 2**32 - 1)
-                        params[key] = f"{first_value}-{second_value}"
-                else:
-                    params[key] = value
-
+                params[key] = match.group(1).strip()
                 extracted_count += 1
 
-        logger.debug(f"Extracted {extracted_count}/16 AWG params from container config, using defaults for remaining")
+        logger.debug(f"Extracted {extracted_count}/{len(param_mapping)} AWG params from container config, using defaults for remaining")
         return params
