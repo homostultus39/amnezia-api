@@ -14,9 +14,11 @@ class AmneziaConfigGenerator:
         client_ip: str,
         awg_params: dict,
         server_endpoint: str,
+        server_port: int,
         primary_dns: str,
         secondary_dns: str,
         container_name: str,
+        description: str = "",
     ) -> str:
         config_dict = self._build_config_dict(
             client_private_key=client_private_key,
@@ -26,9 +28,11 @@ class AmneziaConfigGenerator:
             client_ip=client_ip,
             awg_params=awg_params,
             server_endpoint=server_endpoint,
+            server_port=server_port,
             primary_dns=primary_dns,
             secondary_dns=secondary_dns,
             container_name=container_name,
+            description=description,
         )
         return self._create_vpn_link(config_dict)
 
@@ -42,9 +46,11 @@ class AmneziaConfigGenerator:
         client_ip: str,
         awg_params: dict,
         server_endpoint: str,
+        server_port: int,
         primary_dns: str,
         secondary_dns: str,
         container_name: str,
+        description: str = "",
     ) -> dict:
         awg_config = {
             "client_priv_key": client_private_key,
@@ -55,9 +61,11 @@ class AmneziaConfigGenerator:
             "allowed_ips": "0.0.0.0/0, ::/0",
             "persistent_keep_alive": "25",
             **awg_params,
+            "port": str(server_port),
+            "transport_proto": "udp",
         }
 
-        return {
+        config = {
             "hostName": server_endpoint,
             "defaultContainer": container_name,
             "dns1": primary_dns,
@@ -69,6 +77,11 @@ class AmneziaConfigGenerator:
                 }
             ],
         }
+
+        if description:
+            config["description"] = description
+
+        return config
 
     def _create_vpn_link(self, data: dict) -> str:
         json_str = json.dumps(data, indent=4).encode("utf-8")

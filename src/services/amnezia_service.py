@@ -307,9 +307,11 @@ class AmneziaService(BaseProtocolService):
             client_ip=client_ip,
             awg_params=awg_params,
             server_endpoint=settings.server_public_host,
+            server_port=server_port,
             primary_dns="1.1.1.1",
             secondary_dns="1.0.0.1",
             container_name=settings.amnezia_container_name,
+            description=f"AmneziaWG - {username}",
         )
 
         try:
