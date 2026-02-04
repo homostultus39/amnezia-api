@@ -1,6 +1,8 @@
 import base64
 import json
 import zlib
+import struct
+from collections import OrderedDict
 
 
 class AmneziaConfigGenerator:
@@ -70,44 +72,44 @@ class AmneziaConfigGenerator:
             awg_params=awg_params,
         )
 
-        last_config = {
-            **awg_params,
-            "allowed_ips": ["0.0.0.0/0", "::/0"],
-            "clientId": client_public_key,
-            "client_ip": client_ip_plain,
-            "client_priv_key": client_private_key,
-            "client_pub_key": client_public_key,
-            "config": wireguard_config,
-            "hostName": server_endpoint,
-            "mtu": mtu,
-            "persistent_keep_alive": "25",
-            "port": server_port,
-            "psk_key": psk,
-            "server_pub_key": server_public_key,
-        }
+        last_config = OrderedDict()
 
-        awg_config = {
-            **awg_params,
-            "last_config": json.dumps(last_config, indent=4),
-            "port": str(server_port),
-            "protocol_version": "2",
-            "subnet_address": subnet_address,
-            "transport_proto": "udp",
-        }
+        for key in ["H1", "H2", "H3", "H4", "I1", "I2", "I3", "I4", "I5", "Jc", "Jmax", "Jmin", "S1", "S2", "S3", "S4"]:
+            last_config[key] = awg_params.get(key, "")
+        
+        last_config["allowed_ips"] = ["0.0.0.0/0", "::/0"]
+        last_config["clientId"] = client_public_key
+        last_config["client_ip"] = client_ip_plain
+        last_config["client_priv_key"] = client_private_key
+        last_config["client_pub_key"] = client_public_key
+        last_config["config"] = wireguard_config
+        last_config["hostName"] = server_endpoint
+        last_config["mtu"] = mtu
+        last_config["persistent_keep_alive"] = "25"
+        last_config["port"] = int(server_port)
+        last_config["psk_key"] = psk
+        last_config["server_pub_key"] = server_public_key
 
-        config = {
-            "containers": [
-                {
-                    "awg": awg_config,
-                    "container": container_name,
-                }
-            ],
-            "defaultContainer": container_name,
-        }
+        awg_config = OrderedDict()
+        for key in ["H1", "H2", "H3", "H4", "I1", "I2", "I3", "I4", "I5", "Jc", "Jmax", "Jmin", "S1", "S2", "S3", "S4"]:
+            awg_config[key] = awg_params.get(key, "")
+        
+        awg_config["last_config"] = json.dumps(last_config, indent=4)
+        awg_config["port"] = str(server_port)
+        awg_config["protocol_version"] = "2"
+        awg_config["subnet_address"] = subnet_address
+        awg_config["transport_proto"] = "udp"
 
+        config = OrderedDict()
+        config["containers"] = [
+            OrderedDict([
+                ("awg", awg_config),
+                ("container", container_name)
+            ])
+        ]
+        config["defaultContainer"] = container_name
         if description:
             config["description"] = description
-
         config["dns1"] = primary_dns
         config["dns2"] = secondary_dns
         config["hostName"] = server_endpoint
@@ -116,12 +118,10 @@ class AmneziaConfigGenerator:
 
     def _create_vpn_link(self, data: dict) -> str:
         json_str = json.dumps(data, indent=4).encode("utf-8")
+        header = struct.pack(">I", len(json_str))
         compressed_data = zlib.compress(json_str, level=8)
 
-        original_data_len = len(json_str)
-        header = original_data_len.to_bytes(4, byteorder="big")
-
-        encoded = base64.b64encode(header + compressed_data).decode("utf-8").rstrip("=")
+        encoded = base64.urlsafe_b64encode(header + compressed_data).decode("utf-8").rstrip("=")
         return f"vpn://{encoded}"
 
     def decode_vpn_link(self, vpn_link: str) -> dict:
@@ -130,9 +130,8 @@ class AmneziaConfigGenerator:
         if padding != 4:
             encoded_data += "=" * padding
 
-        compressed_data = base64.b64decode(encoded_data)
-
-        original_data_len = int.from_bytes(compressed_data[:4], byteorder="big")
+        compressed_data = base64.urlsafe_b64decode(encoded_data)
+        original_data_len = struct.unpack(">I", compressed_data[:4])[0]
         decompressed_data = zlib.decompress(compressed_data[4:])
 
         if len(decompressed_data) != original_data_len:
