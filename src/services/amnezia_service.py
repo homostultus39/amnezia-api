@@ -438,34 +438,37 @@ class AmneziaService(BaseProtocolService):
         }
 
         param_mapping = {
-            "Jc": r"Jc\s*=\s*(\d+)",
-            "Jmin": r"Jmin\s*=\s*(\d+)",
-            "Jmax": r"Jmax\s*=\s*(\d+)",
-            "S1": r"S1\s*=\s*(\d+)",
-            "S2": r"S2\s*=\s*(\d+)",
-            "S3": r"S3\s*=\s*(\d+)",
-            "S4": r"S4\s*=\s*(\d+)",
-            "H1": r"H1\s*=\s*(\d+)",
-            "H2": r"H2\s*=\s*(\d+)",
-            "H3": r"H3\s*=\s*(\d+)",
-            "H4": r"H4\s*=\s*(\d+)",
-            "I1": r"I1\s*=\s*(\d+)",
-            "I2": r"I2\s*=\s*(\d+)",
-            "I3": r"I3\s*=\s*(\d+)",
-            "I4": r"I4\s*=\s*(\d+)",
-            "I5": r"I5\s*=\s*(\d+)",
+            "Jc": r"^Jc\s*=\s*(.+)$",
+            "Jmin": r"^Jmin\s*=\s*(.+)$",
+            "Jmax": r"^Jmax\s*=\s*(.+)$",
+            "S1": r"^S1\s*=\s*(.+)$",
+            "S2": r"^S2\s*=\s*(.+)$",
+            "S3": r"^S3\s*=\s*(.+)$",
+            "S4": r"^S4\s*=\s*(.+)$",
+            "H1": r"^H1\s*=\s*(.+)$",
+            "H2": r"^H2\s*=\s*(.+)$",
+            "H3": r"^H3\s*=\s*(.+)$",
+            "H4": r"^H4\s*=\s*(.+)$",
+            "I1": r"^I1\s*=\s*(.+)$",
+            "I2": r"^I2\s*=\s*(.+)$",
+            "I3": r"^I3\s*=\s*(.+)$",
+            "I4": r"^I4\s*=\s*(.+)$",
+            "I5": r"^I5\s*=\s*(.+)$",
         }
 
         extracted_count = 0
         for key, pattern in param_mapping.items():
-            match = re.search(pattern, wg_config)
+            match = re.search(pattern, wg_config, flags=re.MULTILINE)
             if match:
-                value = match.group(1)
+                value = match.group(1).strip()
 
                 if key in ["H1", "H2", "H3", "H4"]:
-                    first_value = int(value)
-                    second_value = random.randint(first_value, 2**32 - 1)
-                    params[key] = f"{first_value}-{second_value}"
+                    if "-" in value:
+                        params[key] = value
+                    else:
+                        first_value = int(value)
+                        second_value = random.randint(first_value, 2**32 - 1)
+                        params[key] = f"{first_value}-{second_value}"
                 else:
                     params[key] = value
 
