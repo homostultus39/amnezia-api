@@ -1,6 +1,7 @@
 from datetime import datetime
 from uuid import UUID
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.database.models import ClientModel, PeerModel
@@ -13,6 +14,18 @@ async def get_client_by_id(session: AsyncSession, client_id: UUID) -> ClientMode
     return result.scalar_one_or_none()
 
 
+async def get_client_by_id_with_peers(
+    session: AsyncSession,
+    client_id: UUID
+) -> ClientModel | None:
+    result = await session.execute(
+        select(ClientModel)
+        .options(selectinload(ClientModel.peers))
+        .where(ClientModel.id == client_id)
+    )
+    return result.scalar_one_or_none()
+
+
 async def get_client_by_username(session: AsyncSession, username: str) -> ClientModel | None:
     result = await session.execute(
         select(ClientModel).where(ClientModel.username == username)
@@ -20,11 +33,14 @@ async def get_client_by_username(session: AsyncSession, username: str) -> Client
     return result.scalar_one_or_none()
 
 
-async def get_all_clients_with_protocol(session: AsyncSession, protocol_id: UUID) -> list[ClientModel]:
+async def get_all_clients_with_peers(
+    session: AsyncSession,
+    protocol_id: UUID
+) -> list[ClientModel]:
     result = await session.execute(
-        select(ClientModel).where(
-            ClientModel.peers.any(PeerModel.protocol_id == protocol_id)
-        )
+        select(ClientModel)
+        .options(selectinload(ClientModel.peers))
+        .where(ClientModel.peers.any(PeerModel.protocol_id == protocol_id))
     )
     return list(result.scalars().all())
 
@@ -47,7 +63,12 @@ async def update_client_expires_at(session: AsyncSession, client_id: UUID, expir
 
 
 async def delete_client(session: AsyncSession, client_id: UUID) -> bool:
-    client = await get_client_by_id(session, client_id)
+    result = await session.execute(
+        select(ClientModel)
+        .options(selectinload(ClientModel.peers))
+        .where(ClientModel.id == client_id)
+    )
+    client = result.scalar_one_or_none()
     if not client:
         return False
 

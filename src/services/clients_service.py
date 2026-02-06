@@ -6,7 +6,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.services.amnezia_service import AmneziaService
 from src.services.management.base_protocol_service import BaseProtocolService
 from src.database.models import ClientModel, AppType
-from src.database.management.operations.client import get_client_by_username, get_client_by_id, create_client, delete_client as delete_client_op
+from src.database.management.operations.client import (
+    get_client_by_username,
+    get_client_by_id_with_peers,
+    create_client,
+    delete_client as delete_client_op,
+)
 from src.management.logger import configure_logger
 
 logger = configure_logger("ClientsService", "yellow")
@@ -90,10 +95,10 @@ class ClientsService:
             }
         }
 
-    async def delete_client(self, session: AsyncSession, client_id: UUID, protocol: str = "amneziawg") -> bool:
-        service = self._get_service(protocol)
+    async def delete_client(self, session: AsyncSession, client_id: UUID) -> bool:
+        service = self._get_service("amneziawg")
 
-        client = await get_client_by_id(session, client_id)
+        client = await get_client_by_id_with_peers(session, client_id)
         if not client:
             logger.warning(f"Client {client_id} not found")
             return False

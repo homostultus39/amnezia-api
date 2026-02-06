@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, HTTPException, status
 from sqlalchemy.exc import SQLAlchemyError
 
 from src.api.v1.clients.logger import logger
@@ -16,13 +16,12 @@ clients_service = ClientsService()
 async def delete_client(
     session: SessionDep,
     client_id: UUID,
-    protocol: str = Query(default="amneziawg", min_length=1, max_length=100),
 ) -> DeleteClientResponse:
     """
     Delete a client and all associated peers from Amnezia.
     """
     try:
-        deleted = await clients_service.delete_client(session, client_id, protocol)
+        deleted = await clients_service.delete_client(session, client_id)
         if not deleted:
             logger.error(f"Client {client_id} not found for deletion")
             raise HTTPException(

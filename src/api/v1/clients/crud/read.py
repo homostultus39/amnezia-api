@@ -7,10 +7,12 @@ from src.api.v1.clients.logger import logger
 from src.api.v1.clients.schemas import ClientResponse
 from src.api.v1.deps.exceptions.clients import protocol_not_supported
 from src.database.connection import SessionDep
-from src.database.management.operations.client import get_client_by_id
+from src.database.management.operations.client import get_client_by_id_with_peers
 from src.services.utils.config_storage import get_config_object_name
 from src.minio.client import MinioClient
 from src.services.clients_service import ClientsService
+from src.services.amnezia_service import AmneziaService
+from src.services.utils.client_formatter import format_client_with_peers
 
 router = APIRouter()
 clients_service = ClientsService()
@@ -90,13 +92,12 @@ async def get_clients(
 async def get_client(
     client_id: UUID,
     session: SessionDep,
-    protocol: str = Query(default="amneziawg", min_length=1, max_length=100),
 ) -> ClientResponse:
     """
     Retrieve a single client by ID.
     """
     try:
-        client_model = await get_client_by_id(session, client_id)
+        client_model = await get_client_by_id_with_peers(session, client_id)
 
         if not client_model:
             raise HTTPException(
@@ -104,16 +105,16 @@ async def get_client(
                 detail=f"Client {client_id} not found",
             )
 
-        clients = await clients_service.get_clients(session, protocol)
-        client_dict = next((c for c in clients if c["id"] == str(client_id)), None)
+        service = AmneziaService()
+        wg_dump = await service.connection.get_wg_dump()
+        peers_data = service._parse_wg_dump(wg_dump)
 
-        if not client_dict:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Client {client_id} not found",
-            )
-
-        await _add_config_urls(client_dict, protocol)
+        client_dict = await format_client_with_peers(
+            client_model,
+            service.protocol_name,
+            peers_data,
+            minio_client,
+        )
 
         logger.info(f"Retrieved client {client_id} successfully")
         return ClientResponse(**client_dict)

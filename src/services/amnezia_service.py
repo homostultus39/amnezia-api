@@ -16,7 +16,7 @@ from src.services.management.schemas import JunkPacketConfig
 from src.services.utils.config_storage import get_config_object_name
 from src.database.models import ClientModel, PeerModel, ProtocolModel, AppType
 from src.database.management.operations.protocol import get_protocol_by_name
-from src.database.management.operations.client import get_all_clients_with_protocol
+from src.database.management.operations.client import get_all_clients_with_peers
 from src.database.management.operations.peer import create_peer, delete_peer, get_peer_by_id, get_allocated_ips
 from src.management.settings import get_settings
 from src.management.logger import configure_logger
@@ -70,7 +70,7 @@ class AmneziaService(BaseProtocolService):
         peers_data = self._parse_wg_dump(wg_dump)
 
         protocol_id = await self._get_protocol_id(session)
-        clients = await get_all_clients_with_protocol(session, protocol_id)
+        clients = await get_all_clients_with_peers(session, protocol_id)
 
         client_list = []
         for client in clients:
