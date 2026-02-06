@@ -1,10 +1,12 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional
 from uuid import UUID
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.services.amnezia_service import AmneziaService
 from src.services.management.base_protocol_service import BaseProtocolService
+from src.database.models import ClientModel, AppType
 from src.management.logger import configure_logger
 
 logger = configure_logger("ClientsService", "yellow")
@@ -46,13 +48,52 @@ class ClientsService:
         session: AsyncSession,
         username: str,
         protocol: str,
-        app_type: str,
         expires_at: Optional[datetime] = None,
     ) -> dict:
         service = self._get_service(protocol)
-        result = await service.create_client(session, username, app_type, expires_at)
-        logger.info(f"Client created: {username} on protocol {protocol}")
-        return result
+
+        result = await session.execute(
+            select(ClientModel).where(ClientModel.username == username)
+        )
+        client = result.scalar_one_or_none()
+
+        if not client:
+            if not expires_at:
+                expires_at = datetime.now() + timedelta(days=30)
+
+            client = ClientModel(username=username, expires_at=expires_at)
+            session.add(client)
+            await session.flush()
+
+        amnezia_vpn_peer = await service.create_peer(
+            session=session,
+            client=client,
+            app_type=AppType.AMNEZIA_VPN.value
+        )
+
+        amnezia_wg_peer = await service.create_peer(
+            session=session,
+            client=client,
+            app_type=AppType.AMNEZIA_WG.value
+        )
+
+        await session.commit()
+
+        logger.info(f"Client created: {username} with both peer types on protocol {protocol}")
+
+        return {
+            "id": str(client.id),
+            "amnezia_vpn": {
+                "protocol": protocol,
+                "config": amnezia_vpn_peer["config"],
+                "url": amnezia_vpn_peer["config_url"],
+            },
+            "amnezia_wg": {
+                "protocol": protocol,
+                "config": amnezia_wg_peer["config"],
+                "url": amnezia_wg_peer["config_url"],
+            }
+        }
 
     async def delete_client(self, session: AsyncSession, peer_id: UUID, protocol: str = "amneziawg") -> bool:
         service = self._get_service(protocol)

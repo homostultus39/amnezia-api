@@ -47,6 +47,7 @@ class ClientModel(Base, UUIDMixin, TimestampMixin):
     __tablename__ = "clients"
 
     username: Mapped[str] = mapped_column(String(255), index=True, unique=True, nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     peers: Mapped[list["PeerModel"]] = relationship("PeerModel", back_populates="client", cascade="all, delete-orphan")
 
 class AppType(Enum):
@@ -67,6 +68,5 @@ class PeerModel(Base, UUIDMixin, TimestampMixin):
     endpoint: Mapped[str] = mapped_column(String(255), nullable=False)
     last_handshake: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=True)
     is_online: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
     client: Mapped["ClientModel"] = relationship("ClientModel", back_populates="peers")

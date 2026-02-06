@@ -1,13 +1,6 @@
 from fastapi import HTTPException, status
 
 
-def client_not_found(username: str) -> HTTPException:
-    return HTTPException(
-        status_code=status.HTTP_404_NOT_FOUND,
-        detail=f"Client '{username}' not found",
-    )
-
-
 def peer_not_found(peer_id: str) -> HTTPException:
     return HTTPException(
         status_code=status.HTTP_404_NOT_FOUND,
@@ -15,24 +8,10 @@ def peer_not_found(peer_id: str) -> HTTPException:
     )
 
 
-def client_already_exists(username: str) -> HTTPException:
-    return HTTPException(
-        status_code=status.HTTP_409_CONFLICT,
-        detail=f"Client '{username}' already exists",
-    )
-
-
 def protocol_not_supported(protocol: str) -> HTTPException:
     return HTTPException(
         status_code=status.HTTP_400_BAD_REQUEST,
         detail=f"Protocol '{protocol}' is not supported",
-    )
-
-
-def invalid_app_type(app_type: str) -> HTTPException:
-    return HTTPException(
-        status_code=status.HTTP_400_BAD_REQUEST,
-        detail=f"Invalid app type: '{app_type}'",
     )
 
 

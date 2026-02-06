@@ -6,6 +6,8 @@ from alembic.config import Config
 from src.management.logger import configure_logger
 from src.api.v1.auth.router import router as auth_router
 from src.api.v1.clients.router import router as clients_router
+from src.api.v1.peers.router import router as peers_router
+from src.api.v1.server.router import router as server_router
 from src.api.v1.deps.middlewares.auth import get_current_admin
 from src.database.management.default.admin_data import create_default_admin_user
 from src.database.management.default.protocol_data import create_default_protocols
@@ -51,6 +53,16 @@ app.include_router(
     clients_router,
     prefix="/clients",
     tags=["Clients"],
+    dependencies=[Depends(get_current_admin)]
+)
+
+app.include_router(
+    peers_router,
+    dependencies=[Depends(get_current_admin)]
+)
+
+app.include_router(
+    server_router,
     dependencies=[Depends(get_current_admin)]
 )
 

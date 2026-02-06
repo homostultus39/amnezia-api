@@ -1,6 +1,5 @@
 from abc import ABC, abstractmethod
 from datetime import datetime
-from typing import Optional
 from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -16,12 +15,11 @@ class BaseProtocolService(ABC):
         pass
 
     @abstractmethod
-    async def create_client(
+    async def create_peer(
         self,
         session: AsyncSession,
-        username: str,
+        client: "ClientModel",
         app_type: str,
-        expires_at: Optional[datetime] = None,
     ) -> dict:
         pass
 
@@ -31,23 +29,24 @@ class BaseProtocolService(ABC):
 
     async def cleanup_expired_clients(self, session: AsyncSession) -> int:
         from sqlalchemy import select
-        from src.database.models import PeerModel
+        from src.database.models import ClientModel, PeerModel
 
         result = await session.execute(
-            select(PeerModel).where(
-                PeerModel.expires_at < datetime.now(),
-                PeerModel.protocol_id == await self._get_protocol_id(session)
+            select(ClientModel).where(
+                ClientModel.expires_at < datetime.now(),
+                ClientModel.peers.any(PeerModel.protocol_id == await self._get_protocol_id(session))
             )
         )
-        expired_peers = result.scalars().all()
+        expired_clients = result.scalars().all()
 
         deleted_count = 0
-        for peer in expired_peers:
-            try:
-                await self.delete_client(session, peer.id)
-                deleted_count += 1
-            except Exception:
-                pass
+        for client in expired_clients:
+            for peer in client.peers:
+                try:
+                    await self.delete_client(session, peer.id)
+                    deleted_count += 1
+                except Exception:
+                    pass
 
         return deleted_count
 

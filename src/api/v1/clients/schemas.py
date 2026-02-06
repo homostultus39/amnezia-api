@@ -3,54 +3,39 @@ from typing import Optional
 
 from pydantic import BaseModel, Field
 
-from src.database.models import AppType
 
-
-class TrafficInfo(BaseModel):
-    received: int
-    sent: int
-
-
-class ConfigStorage(BaseModel):
-    bucket: str
-    object: str
+class PeerConfigResponse(BaseModel):
+    protocol: str
+    config: str
     url: str
 
 
-class PeerResponse(BaseModel):
+class CreateClientResponse(BaseModel):
     id: str
-    public_key: str
-    allowed_ips: list[str]
-    endpoint: Optional[str]
-    last_handshake: Optional[datetime]
-    traffic: TrafficInfo
-    online: bool
-    expires_at: Optional[datetime]
-    app_type: str
+    amnezia_vpn: PeerConfigResponse
+    amnezia_wg: PeerConfigResponse
+
+
+class PeerInfoResponse(BaseModel):
+    id: str
+    endpoint: str
     protocol: str
-    config_url: Optional[str] = None
+    url: str
+    online: bool
+    last_handshake: Optional[datetime]
 
 
 class ClientResponse(BaseModel):
     id: str
     username: str
-    peers: list[PeerResponse]
+    expires_at: datetime
+    peers: dict[str, PeerInfoResponse]
 
 
 class CreateClientRequest(BaseModel):
     username: str = Field(..., min_length=1, max_length=255)
     protocol: str = Field(default="amneziawg", min_length=1, max_length=100)
-    app_type: AppType
     expires_at: Optional[datetime] = None
-
-
-class CreateClientResponse(BaseModel):
-    id: str
-    public_key: str
-    config: str
-    config_type: str
-    config_storage: ConfigStorage
-    protocol: str
 
 
 class UpdateClientRequest(BaseModel):
@@ -63,4 +48,3 @@ class DeleteClientResponse(BaseModel):
 
 class UpdateClientResponse(BaseModel):
     status: str
-

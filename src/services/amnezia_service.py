@@ -69,29 +69,23 @@ class AmneziaService(BaseProtocolService):
 
         client_list = []
         for client in clients:
-            peers_list = []
+            peers_dict = {}
             for peer in client.peers:
                 wg_peer = peers_data.get(peer.public_key, {})
-                peers_list.append({
+                peers_dict[peer.app_type] = {
                     "id": str(peer.id),
-                    "public_key": peer.public_key,
-                    "allowed_ips": peer.allowed_ips,
-                    "endpoint": wg_peer.get("endpoint"),
-                    "last_handshake": wg_peer.get("last_handshake"),
-                    "traffic": {
-                        "received": wg_peer.get("rx_bytes", 0),
-                        "sent": wg_peer.get("tx_bytes", 0),
-                    },
-                    "online": wg_peer.get("online", False),
-                    "expires_at": peer.expires_at.isoformat() if peer.expires_at else None,
-                    "app_type": peer.app_type,
+                    "endpoint": wg_peer.get("endpoint") or peer.endpoint,
                     "protocol": self.protocol_name,
-                })
+                    "url": None,
+                    "online": wg_peer.get("online", False),
+                    "last_handshake": wg_peer.get("last_handshake"),
+                }
 
             client_list.append({
                 "id": str(client.id),
                 "username": client.username,
-                "peers": peers_list,
+                "expires_at": client.expires_at,
+                "peers": peers_dict,
             })
 
         logger.info(f"Retrieved {len(client_list)} clients from AmneziaWG")
@@ -133,30 +127,18 @@ class AmneziaService(BaseProtocolService):
 
         return peers
 
-    async def create_client(
+    async def create_peer(
         self,
         session: AsyncSession,
-        username: str,
+        client: ClientModel,
         app_type: str,
-        expires_at: Optional[datetime] = None,
     ) -> dict:
         protocol_id = await self._get_protocol_id(session)
-
-        result = await session.execute(
-            select(ClientModel).where(ClientModel.username == username)
-        )
-        client = result.scalar_one_or_none()
-
-        if not client:
-            client = ClientModel(username=username)
-            session.add(client)
-            await session.flush()
 
         private_key = await self.connection.generate_private_key()
         public_key = await self.connection.generate_public_key(private_key)
 
         allocated_ip = await self._allocate_ip_address(session)
-
         server_port = await self._get_server_port()
 
         peer = PeerModel(
@@ -165,7 +147,6 @@ class AmneziaService(BaseProtocolService):
             public_key=public_key,
             protocol_id=protocol_id,
             endpoint=f"{settings.server_public_host}:{server_port}",
-            expires_at=expires_at,
             app_type=app_type,
         )
         session.add(peer)
@@ -175,21 +156,17 @@ class AmneziaService(BaseProtocolService):
         await self.connection.sync_wg_config()
 
         config_payload = await self._generate_config_payload(
-            app_type, private_key, public_key, allocated_ip, username, server_port
+            app_type, private_key, public_key, allocated_ip, client.username, server_port
         )
 
-        config_storage = await self._store_config(client.id, config_payload["config"])
+        config_storage = await self._store_config(client.id, app_type, config_payload["config"])
 
-        await session.commit()
-        logger.info(f"Client created: {username} with IP {allocated_ip}")
+        logger.info(f"Peer created for {client.username}: {app_type} with IP {allocated_ip}")
 
         return {
-            "id": str(peer.id),
-            "public_key": public_key,
+            "peer_id": str(peer.id),
             "config": config_payload["config"],
-            "config_type": config_payload["type"],
-            "config_storage": config_storage,
-            "protocol": self.protocol_name,
+            "config_url": config_storage["url"],
         }
 
     async def delete_client(self, session: AsyncSession, peer_id: UUID) -> bool:
@@ -395,8 +372,8 @@ class AmneziaService(BaseProtocolService):
 
         raise ValueError(f"Unsupported app_type: {app_type}")
 
-    async def _store_config(self, client_id: UUID, config: str) -> dict:
-        object_name = f"configs/{self.protocol_name}/{client_id}"
+    async def _store_config(self, client_id: UUID, app_type: str, config: str) -> dict:
+        object_name = f"configs/{self.protocol_name}/{client_id}/{app_type}"
 
         await self.config_storage.upload_text(object_name, config, content_type="text/plain")
         url = await self.config_storage.presigned_get_url(object_name)
