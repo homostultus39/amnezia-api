@@ -7,14 +7,17 @@ import random
 from datetime import datetime
 from typing import Optional
 from uuid import UUID
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.services.management.amnezia_connection import AmneziaConnection
 from src.services.management.base_protocol_service import BaseProtocolService
 from src.services.management.amnezia_config_generator import AmneziaConfigGenerator
 from src.services.management.schemas import JunkPacketConfig
+from src.services.utils.config_storage import get_config_object_name
 from src.database.models import ClientModel, PeerModel, ProtocolModel, AppType
+from src.database.management.operations.protocol import get_protocol_by_name
+from src.database.management.operations.client import get_all_clients_with_protocol
+from src.database.management.operations.peer import create_peer, delete_peer, get_peer_by_id, get_allocated_ips
 from src.management.settings import get_settings
 from src.management.logger import configure_logger
 from src.minio.client import MinioClient
@@ -56,16 +59,18 @@ class AmneziaService(BaseProtocolService):
     def protocol_name(self) -> str:
         return self._protocol_name
 
+    async def add_peer_to_config(self, public_key: str, allowed_ip: str) -> None:
+        await self._add_peer_to_config(public_key, allowed_ip)
+
+    async def remove_peer_from_config(self, public_key: str) -> None:
+        await self._remove_peer_from_config(public_key)
+
     async def get_clients(self, session: AsyncSession) -> list[dict]:
         wg_dump = await self.connection.get_wg_dump()
         peers_data = self._parse_wg_dump(wg_dump)
 
-        result = await session.execute(
-            select(ClientModel).where(
-                ClientModel.peers.any(PeerModel.protocol_id == await self._get_protocol_id(session))
-            )
-        )
-        clients = result.scalars().all()
+        protocol_id = await self._get_protocol_id(session)
+        clients = await get_all_clients_with_protocol(session, protocol_id)
 
         client_list = []
         for client in clients:
@@ -141,16 +146,15 @@ class AmneziaService(BaseProtocolService):
         allocated_ip = await self._allocate_ip_address(session)
         server_port = await self._get_server_port()
 
-        peer = PeerModel(
+        peer = await create_peer(
+            session=session,
             client_id=client.id,
-            allowed_ips=[allocated_ip],
-            public_key=public_key,
             protocol_id=protocol_id,
-            endpoint=f"{settings.server_public_host}:{server_port}",
             app_type=app_type,
+            public_key=public_key,
+            allowed_ips=[allocated_ip],
+            endpoint=f"{settings.server_public_host}:{server_port}"
         )
-        session.add(peer)
-        await session.flush()
 
         await self._add_peer_to_config(public_key, allocated_ip)
         await self.connection.sync_wg_config()
@@ -164,16 +168,13 @@ class AmneziaService(BaseProtocolService):
         logger.info(f"Peer created for {client.username}: {app_type} with IP {allocated_ip}")
 
         return {
-            "peer_id": str(peer.id),
+            "peer": peer,
             "config": config_payload["config"],
             "config_url": config_storage["url"],
         }
 
     async def delete_client(self, session: AsyncSession, peer_id: UUID) -> bool:
-        result = await session.execute(
-            select(PeerModel).where(PeerModel.id == peer_id)
-        )
-        peer = result.scalar_one_or_none()
+        peer = await get_peer_by_id(session, peer_id)
 
         if not peer:
             logger.warning(f"Peer {peer_id} not found in database for deletion")
@@ -184,21 +185,19 @@ class AmneziaService(BaseProtocolService):
             await self._delete_config(peer.client_id)
             await self.connection.sync_wg_config()
 
-            await session.delete(peer)
+            deleted = await delete_peer(session, peer_id)
             await session.commit()
 
-            logger.info(f"Peer {peer_id} deleted successfully from AmneziaWG")
-            return True
+            if deleted:
+                logger.info(f"Peer {peer_id} deleted successfully from AmneziaWG")
+            return deleted
         except Exception as exc:
             logger.error(f"Failed to delete client {peer_id}: {exc}")
             await session.rollback()
             raise
 
     async def _get_protocol_id(self, session: AsyncSession) -> UUID:
-        result = await session.execute(
-            select(ProtocolModel).where(ProtocolModel.name == self.protocol_name)
-        )
-        protocol = result.scalar_one_or_none()
+        protocol = await get_protocol_by_name(session, self.protocol_name)
 
         if not protocol:
             protocol = ProtocolModel(name=self.protocol_name)
@@ -216,16 +215,13 @@ class AmneziaService(BaseProtocolService):
 
         network = ipaddress.IPv4Network(subnet_match.group(1), strict=False)
 
-        result = await session.execute(
-            select(PeerModel.allowed_ips).where(
-                PeerModel.protocol_id == await self._get_protocol_id(session)
-            )
-        )
+        protocol_id = await self._get_protocol_id(session)
+        all_ips = await get_allocated_ips(session, protocol_id)
+
         used_ips = set()
-        for row in result.scalars():
-            for ip_str in row:
-                ip_obj = ipaddress.IPv4Address(ip_str.split("/")[0])
-                used_ips.add(ip_obj)
+        for ip_str in all_ips:
+            ip_obj = ipaddress.IPv4Address(ip_str.split("/")[0])
+            used_ips.add(ip_obj)
 
         for ip in network.hosts():
             if ip not in used_ips and ip != network.network_address + 1:
@@ -373,7 +369,7 @@ class AmneziaService(BaseProtocolService):
         raise ValueError(f"Unsupported app_type: {app_type}")
 
     async def _store_config(self, client_id: UUID, app_type: str, config: str) -> dict:
-        object_name = f"configs/{self.protocol_name}/{client_id}/{app_type}"
+        object_name = get_config_object_name(self.protocol_name, client_id, app_type)
 
         await self.config_storage.upload_text(object_name, config, content_type="text/plain")
         url = await self.config_storage.presigned_get_url(object_name)

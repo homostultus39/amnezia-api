@@ -4,6 +4,7 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from src.api.v1.peers.logger import logger
 from src.api.v1.peers.schemas import CreatePeerRequest, PeerResponse
 from src.database.connection import SessionDep
+from src.services.utils.config_storage import get_config_object_name
 from src.minio.client import MinioClient
 from src.services.peers_service import PeersService
 
@@ -35,15 +36,15 @@ async def create_peer(
             app_type=payload.app_type.value,
         )
 
-        await session.commit()
-
-        object_name = f"configs/{payload.protocol}/{client.id}/{payload.app_type.value}"
-        config_url = await minio_client.presigned_get_url(object_name)
-
+        peer = peer_data["peer"]
         wg_dump = await service.connection.get_wg_dump()
         peers_data = service._parse_wg_dump(wg_dump)
 
-        peer = await peers_service.get_peer_by_id(session, peer_data["peer_id"])
+        await session.commit()
+
+        object_name = get_config_object_name(payload.protocol, client.id, payload.app_type.value)
+        config_url = await minio_client.presigned_get_url(object_name)
+
         wg_peer = peers_data.get(peer.public_key, {})
 
         logger.info(f"Peer created for client {client.username}: {payload.app_type.value}")

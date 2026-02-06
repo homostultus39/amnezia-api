@@ -5,6 +5,8 @@ from sqlalchemy.exc import SQLAlchemyError
 from src.api.v1.peers.logger import logger
 from src.api.v1.peers.schemas import UpdatePeerRequest, PeerResponse
 from src.database.connection import SessionDep
+from src.database.management.operations.peer import get_peer_by_id
+from src.services.utils.config_storage import get_config_object_name
 from src.minio.client import MinioClient
 from src.services.peers_service import PeersService
 from src.services.amnezia_service import AmneziaService
@@ -25,7 +27,7 @@ async def update_peer(
     Update a peer by removing the old configuration and creating a new one.
     """
     try:
-        peer = await peers_service.get_peer_by_id(session, peer_id)
+        peer = await get_peer_by_id(session, peer_id)
 
         if not peer:
             raise HTTPException(
@@ -43,7 +45,7 @@ async def update_peer(
         old_protocol = "amneziawg"
         client = peer.client
 
-        await amnezia_service._remove_peer_from_config(peer.public_key)
+        await amnezia_service.remove_peer_from_config(peer.public_key)
         await amnezia_service.connection.sync_wg_config()
 
         await session.delete(peer)
@@ -59,15 +61,15 @@ async def update_peer(
             app_type=new_app_type,
         )
 
-        await session.commit()
-
-        object_name = f"configs/{new_protocol}/{client.id}/{new_app_type}"
-        config_url = await minio_client.presigned_get_url(object_name)
-
+        new_peer = new_peer_data["peer"]
         wg_dump = await service.connection.get_wg_dump()
         peers_data = service._parse_wg_dump(wg_dump)
 
-        new_peer = await peers_service.get_peer_by_id(session, new_peer_data["peer_id"])
+        await session.commit()
+
+        object_name = get_config_object_name(new_protocol, client.id, new_app_type)
+        config_url = await minio_client.presigned_get_url(object_name)
+
         wg_peer = peers_data.get(new_peer.public_key, {})
 
         logger.info(f"Peer {peer_id} updated successfully")

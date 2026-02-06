@@ -1,15 +1,14 @@
 from datetime import datetime
 from uuid import UUID
 from fastapi import APIRouter, HTTPException, Query, status
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import SQLAlchemyError
 
 from src.api.v1.clients.logger import logger
 from src.api.v1.clients.schemas import ClientResponse
 from src.api.v1.deps.exceptions.clients import protocol_not_supported
 from src.database.connection import SessionDep
-from src.database.models import ClientModel
+from src.database.management.operations.client import get_client_by_id
+from src.services.utils.config_storage import get_config_object_name
 from src.minio.client import MinioClient
 from src.services.clients_service import ClientsService
 
@@ -24,7 +23,7 @@ async def _add_config_urls(client: dict, protocol: str) -> None:
         return
 
     for app_type, peer_info in client.get("peers", {}).items():
-        object_name = f"configs/{protocol}/{client_id}/{app_type}"
+        object_name = get_config_object_name(protocol, client_id, app_type)
         try:
             peer_info["url"] = await minio_client.presigned_get_url(object_name)
         except Exception as exc:
@@ -97,10 +96,7 @@ async def get_client(
     Retrieve a single client by ID.
     """
     try:
-        result = await session.execute(
-            select(ClientModel).where(ClientModel.id == client_id)
-        )
-        client_model = result.scalar_one_or_none()
+        client_model = await get_client_by_id(session, client_id)
 
         if not client_model:
             raise HTTPException(

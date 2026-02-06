@@ -1,5 +1,4 @@
 from abc import ABC, abstractmethod
-from datetime import datetime
 from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -28,16 +27,10 @@ class BaseProtocolService(ABC):
         pass
 
     async def cleanup_expired_clients(self, session: AsyncSession) -> int:
-        from sqlalchemy import select
-        from src.database.models import ClientModel, PeerModel
+        from src.database.management.operations.client import get_expired_clients
 
-        result = await session.execute(
-            select(ClientModel).where(
-                ClientModel.expires_at < datetime.now(),
-                ClientModel.peers.any(PeerModel.protocol_id == await self._get_protocol_id(session))
-            )
-        )
-        expired_clients = result.scalars().all()
+        protocol_id = await self._get_protocol_id(session)
+        expired_clients = await get_expired_clients(session, protocol_id)
 
         deleted_count = 0
         for client in expired_clients:

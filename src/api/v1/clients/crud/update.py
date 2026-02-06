@@ -1,13 +1,12 @@
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, status
-from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 
 from src.api.v1.clients.logger import logger
 from src.api.v1.clients.schemas import UpdateClientRequest, UpdateClientResponse
 from src.database.connection import SessionDep
-from src.database.models import ClientModel
+from src.database.management.operations.client import get_client_by_id
 
 router = APIRouter()
 
@@ -22,10 +21,7 @@ async def update_client(
     Update client metadata such as expiration time.
     """
     try:
-        result = await session.execute(
-            select(ClientModel).where(ClientModel.id == client_id)
-        )
-        client = result.scalar_one_or_none()
+        client = await get_client_by_id(session, client_id)
     except SQLAlchemyError:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,

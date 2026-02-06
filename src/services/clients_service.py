@@ -1,12 +1,12 @@
 from datetime import datetime, timedelta
 from typing import Optional
 from uuid import UUID
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.services.amnezia_service import AmneziaService
 from src.services.management.base_protocol_service import BaseProtocolService
 from src.database.models import ClientModel, AppType
+from src.database.management.operations.client import get_client_by_username, create_client
 from src.management.logger import configure_logger
 
 logger = configure_logger("ClientsService", "yellow")
@@ -52,18 +52,13 @@ class ClientsService:
     ) -> dict:
         service = self._get_service(protocol)
 
-        result = await session.execute(
-            select(ClientModel).where(ClientModel.username == username)
-        )
-        client = result.scalar_one_or_none()
+        client = await get_client_by_username(session, username)
 
         if not client:
             if not expires_at:
                 expires_at = datetime.now() + timedelta(days=30)
 
-            client = ClientModel(username=username, expires_at=expires_at)
-            session.add(client)
-            await session.flush()
+            client = await create_client(session, username, expires_at)
 
         amnezia_vpn_peer = await service.create_peer(
             session=session,

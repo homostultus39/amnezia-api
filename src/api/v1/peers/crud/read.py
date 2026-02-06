@@ -1,12 +1,14 @@
 from uuid import UUID
 from fastapi import APIRouter, HTTPException, Query, status
-from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 
 from src.api.v1.peers.logger import logger
 from src.api.v1.peers.schemas import PeerResponse
 from src.database.connection import SessionDep
-from src.database.models import PeerModel, ProtocolModel, ClientModel
+from src.database.management.operations.protocol import get_protocol_by_name
+from src.database.management.operations.peer import get_all_peers_by_protocol
+from src.database.management.operations.client import get_client_by_id
+from src.services.utils.config_storage import get_config_object_name
 from src.minio.client import MinioClient
 from src.services.amnezia_service import AmneziaService
 
@@ -25,10 +27,7 @@ async def get_peers(
     Retrieve all peers with optional filters.
     """
     try:
-        result = await session.execute(
-            select(ProtocolModel).where(ProtocolModel.name == protocol)
-        )
-        protocol_model = result.scalar_one_or_none()
+        protocol_model = await get_protocol_by_name(session, protocol)
 
         if not protocol_model:
             raise HTTPException(
@@ -36,9 +35,7 @@ async def get_peers(
                 detail=f"Protocol {protocol} not found",
             )
 
-        query = select(PeerModel).where(PeerModel.protocol_id == protocol_model.id)
-        result = await session.execute(query)
-        peers = result.scalars().all()
+        peers = await get_all_peers_by_protocol(session, protocol_model.id)
 
         wg_dump = await amnezia_service.connection.get_wg_dump()
         peers_data = amnezia_service._parse_wg_dump(wg_dump)
@@ -51,7 +48,7 @@ async def get_peers(
             if online is not None and is_online != online:
                 continue
 
-            object_name = f"configs/{protocol}/{peer.client_id}/{peer.app_type}"
+            object_name = get_config_object_name(protocol, peer.client_id, peer.app_type)
             try:
                 config_url = await minio_client.presigned_get_url(object_name)
             except Exception:
@@ -101,10 +98,7 @@ async def get_client_peers(
     Retrieve all peers for a specific client.
     """
     try:
-        result = await session.execute(
-            select(ClientModel).where(ClientModel.id == client_id)
-        )
-        client = result.scalar_one_or_none()
+        client = await get_client_by_id(session, client_id)
 
         if not client:
             raise HTTPException(
@@ -119,7 +113,7 @@ async def get_client_peers(
         for peer in client.peers:
             wg_peer = peers_data.get(peer.public_key, {})
 
-            object_name = f"configs/{protocol}/{peer.client_id}/{peer.app_type}"
+            object_name = get_config_object_name(protocol, peer.client_id, peer.app_type)
             try:
                 config_url = await minio_client.presigned_get_url(object_name)
             except Exception:
