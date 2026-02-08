@@ -51,7 +51,7 @@ async def get_peers(
             if online is not None and is_online != online:
                 continue
 
-            object_name = get_config_object_name(protocol, peer.client_id, peer.app_type)
+            object_name = get_config_object_name(protocol_name, peer.client_id, peer.app_type)
             try:
                 config_url = await minio_client.presigned_get_url(object_name)
             except Exception:
@@ -63,7 +63,7 @@ async def get_peers(
                     client_id=str(peer.client_id),
                     username=peer.client.username,
                     app_type=peer.app_type,
-                    protocol=protocol,
+                    protocol=protocol_name,
                     endpoint=wg_peer.get("endpoint") or peer.endpoint,
                     public_key=peer.public_key,
                     online=is_online,
@@ -130,7 +130,7 @@ async def get_client_peers(
                     client_id=str(client.id),
                     username=client.username,
                     app_type=peer.app_type,
-                    protocol=protocol,
+                    protocol=protocol_name,
                     endpoint=wg_peer.get("endpoint") or peer.endpoint,
                     public_key=peer.public_key,
                     online=wg_peer.get("online", False),
