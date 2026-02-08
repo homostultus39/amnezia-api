@@ -1,6 +1,6 @@
 from src.database.connection import sessionmaker
 from src.management.settings import get_settings
-from src.database.management.operations.admin import get_admin_user_by_username, create_admin_user
+from src.database.management.operations.admin import create_admin_user
 
 settings = get_settings()
 

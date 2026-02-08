@@ -8,11 +8,11 @@ from src.api.v1.clients.schemas import ClientResponse
 from src.api.v1.deps.exceptions.clients import protocol_not_supported
 from src.database.connection import SessionDep
 from src.database.management.operations.client import get_client_by_id_with_peers
-from src.services.utils.config_storage import get_config_object_name
+from src.services.management.config_storage import get_config_object_name
 from src.minio.client import MinioClient
 from src.services.clients_service import ClientsService
 from src.services.amnezia_service import AmneziaService
-from src.services.utils.client_formatter import format_client_with_peers
+from src.api.v1.clients.utils.client_formatter import format_client_with_peers
 from src.management.settings import get_settings
 
 router = APIRouter()

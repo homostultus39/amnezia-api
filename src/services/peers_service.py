@@ -3,9 +3,8 @@ from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.services.amnezia_service import AmneziaService
-from src.database.models import ClientModel, PeerModel
+from src.database.models import ClientModel
 from src.database.management.operations.client import get_client_by_id, get_client_by_username
-from src.database.management.operations.peer import get_peer_by_id
 from src.management.settings import get_settings
 from src.management.logger import configure_logger
 

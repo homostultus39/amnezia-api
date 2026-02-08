@@ -1,20 +1,15 @@
 import re
 import json
-import zlib
-import base64
 import ipaddress
-import random
 from datetime import datetime
-from typing import Optional
 from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.services.management.amnezia_connection import AmneziaConnection
 from src.services.management.base_protocol_service import BaseProtocolService
 from src.services.management.amnezia_config_generator import AmneziaConfigGenerator
-from src.services.management.schemas import JunkPacketConfig
-from src.services.utils.config_storage import get_config_object_name
-from src.database.models import ClientModel, PeerModel, ProtocolModel, AppType
+from src.services.management.config_storage import get_config_object_name
+from src.database.models import ClientModel, ProtocolModel, AppType
 from src.database.management.operations.protocol import get_protocol_by_name
 from src.database.management.operations.client import get_all_clients_with_peers
 from src.database.management.operations.peer import create_peer, delete_peer, get_peer_by_id, get_allocated_ips

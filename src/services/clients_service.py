@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.services.amnezia_service import AmneziaService
 from src.services.management.base_protocol_service import BaseProtocolService
-from src.database.models import ClientModel, AppType
+from src.database.models import AppType
 from src.database.management.operations.client import (
     get_client_by_username,
     get_client_by_id_with_peers,

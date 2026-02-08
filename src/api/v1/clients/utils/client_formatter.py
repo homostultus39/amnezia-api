@@ -1,7 +1,7 @@
 from typing import Any
 
 from src.database.models import ClientModel
-from src.services.utils.config_storage import get_config_object_name
+from src.services.management.config_storage import get_config_object_name
 from src.minio.client import MinioClient
 
 
@@ -36,4 +36,3 @@ async def format_client_with_peers(
         "expires_at": client.expires_at,
         "peers": peers_dict,
     }
-

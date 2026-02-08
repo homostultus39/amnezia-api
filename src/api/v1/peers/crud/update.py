@@ -6,7 +6,7 @@ from src.api.v1.peers.logger import logger
 from src.api.v1.peers.schemas import UpdatePeerRequest, PeerResponse
 from src.database.connection import SessionDep
 from src.database.management.operations.peer import get_peer_by_id_with_client
-from src.services.utils.config_storage import get_config_object_name
+from src.services.management.config_storage import get_config_object_name
 from src.minio.client import MinioClient
 from src.services.peers_service import PeersService
 from src.services.amnezia_service import AmneziaService
