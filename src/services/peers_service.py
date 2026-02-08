@@ -6,6 +6,7 @@ from src.services.amnezia_service import AmneziaService
 from src.database.models import ClientModel, PeerModel
 from src.database.management.operations.client import get_client_by_id, get_client_by_username
 from src.database.management.operations.peer import get_peer_by_id
+from src.management.settings import get_settings
 from src.management.logger import configure_logger
 
 logger = configure_logger("PeersService", "cyan")
@@ -13,8 +14,9 @@ logger = configure_logger("PeersService", "cyan")
 
 class PeersService:
     def __init__(self):
+        self.settings = get_settings()
         self._services = {
-            "amneziawg": AmneziaService(),
+            self.settings.default_protocol: AmneziaService(),
         }
 
     def _get_service(self, protocol: str):

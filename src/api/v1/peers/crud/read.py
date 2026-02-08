@@ -11,8 +11,10 @@ from src.database.management.operations.client import get_client_by_id_with_peer
 from src.services.utils.config_storage import get_config_object_name
 from src.minio.client import MinioClient
 from src.services.amnezia_service import AmneziaService
+from src.management.settings import get_settings
 
 router = APIRouter()
+settings = get_settings()
 minio_client = MinioClient()
 amnezia_service = AmneziaService()
 
@@ -20,19 +22,20 @@ amnezia_service = AmneziaService()
 @router.get("/", response_model=list[PeerResponse])
 async def get_peers(
     session: SessionDep,
-    protocol: str | None = Query(default="amneziawg"),
+    protocol: str | None = Query(default=None),
     online: bool | None = Query(default=None),
 ) -> list[PeerResponse]:
     """
     Retrieve all peers with optional filters.
     """
     try:
-        protocol_model = await get_protocol_by_name(session, protocol)
+        protocol_name = protocol or settings.default_protocol
+        protocol_model = await get_protocol_by_name(session, protocol_name)
 
         if not protocol_model:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Protocol {protocol} not found",
+                detail=f"Protocol {protocol_name} not found",
             )
 
         peers = await get_all_peers_by_protocol_with_client(session, protocol_model.id)
@@ -92,7 +95,7 @@ async def get_peers(
 async def get_client_peers(
     client_id: UUID,
     session: SessionDep,
-    protocol: str = Query(default="amneziawg"),
+    protocol: str | None = Query(default=None),
 ) -> list[PeerResponse]:
     """
     Retrieve all peers for a specific client.
@@ -109,11 +112,13 @@ async def get_client_peers(
         wg_dump = await amnezia_service.connection.get_wg_dump()
         peers_data = amnezia_service._parse_wg_dump(wg_dump)
 
+        protocol_name = protocol or settings.default_protocol
+
         peer_responses = []
         for peer in client.peers:
             wg_peer = peers_data.get(peer.public_key, {})
 
-            object_name = get_config_object_name(protocol, peer.client_id, peer.app_type)
+            object_name = get_config_object_name(protocol_name, peer.client_id, peer.app_type)
             try:
                 config_url = await minio_client.presigned_get_url(object_name)
             except Exception:

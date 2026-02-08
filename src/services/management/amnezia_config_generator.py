@@ -23,6 +23,7 @@ class AmneziaConfigGenerator:
         description: str = "",
         subnet_address: str = "10.8.1.0",
         mtu: str = "1376",
+        persistent_keepalive: int = 25,
     ) -> str:
         config_dict = self._build_config_dict(
             client_private_key=client_private_key,
@@ -39,6 +40,7 @@ class AmneziaConfigGenerator:
             description=description,
             subnet_address=subnet_address,
             mtu=mtu,
+            persistent_keepalive=persistent_keepalive,
         )
         return self._create_vpn_link(config_dict)
 
@@ -59,6 +61,7 @@ class AmneziaConfigGenerator:
         description: str = "",
         subnet_address: str = "10.8.1.0",
         mtu: str = "1376",
+        persistent_keepalive: int = 25,
     ) -> dict:
         client_ip_plain = client_ip.split("/", 1)[0]
 
@@ -71,6 +74,7 @@ class AmneziaConfigGenerator:
             server_port=server_port,
             awg_params=awg_params,
             mtu=mtu,
+            persistent_keepalive=persistent_keepalive,
         )
 
         last_config = OrderedDict()
@@ -86,7 +90,7 @@ class AmneziaConfigGenerator:
         last_config["config"] = wireguard_config
         last_config["hostName"] = server_endpoint
         last_config["mtu"] = mtu
-        last_config["persistent_keep_alive"] = "25"
+        last_config["persistent_keep_alive"] = str(persistent_keepalive)
         last_config["port"] = int(server_port)
         last_config["psk_key"] = psk
         last_config["server_pub_key"] = server_public_key
@@ -153,6 +157,7 @@ class AmneziaConfigGenerator:
         server_port: int,
         awg_params: dict,
         mtu: str = "1376",
+        persistent_keepalive: int = 25,
     ) -> str:
         return (
             "[Interface]\n"
@@ -182,6 +187,6 @@ class AmneziaConfigGenerator:
             f"PresharedKey = {psk}\n"
             "AllowedIPs = 0.0.0.0/0, ::/0\n"
             f"Endpoint = {server_endpoint}:{server_port}\n"
-            "PersistentKeepalive = 25\n"
+            f"PersistentKeepalive = {persistent_keepalive}\n"
         )
 

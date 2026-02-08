@@ -13,7 +13,16 @@ from src.management.settings import get_settings
 router = APIRouter(prefix="/server", tags=["Server"])
 
 settings = get_settings()
-host_service = HostService()
+
+try:
+    host_service = HostService()
+except Exception as exc:
+    import sys
+    from src.management.logger import configure_logger
+    logger = configure_logger("ServerRouter", "red")
+    logger.critical(f"Failed to initialize HostService: {exc}")
+    sys.exit(1)
+
 traffic_receiver = TrafficReceiver(settings.amnezia_container_name)
 
 
@@ -33,7 +42,7 @@ async def get_server_status() -> ServerStatusResponse:
                 container_name=container_name,
                 port=None,
                 interface="",
-                protocol="amneziawg",
+                protocol=settings.default_protocol,
             )
 
         port = await host_service.get_container_port(container_name, "udp")
@@ -44,8 +53,8 @@ async def get_server_status() -> ServerStatusResponse:
             status="running",
             container_name=container_name,
             port=port,
-            interface="wg0",
-            protocol="amneziawg",
+            interface=settings.amnezia_interface,
+            protocol=settings.default_protocol,
         )
 
     except Exception as exc:

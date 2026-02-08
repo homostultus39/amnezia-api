@@ -13,8 +13,10 @@ from src.minio.client import MinioClient
 from src.services.clients_service import ClientsService
 from src.services.amnezia_service import AmneziaService
 from src.services.utils.client_formatter import format_client_with_peers
+from src.management.settings import get_settings
 
 router = APIRouter()
+settings = get_settings()
 clients_service = ClientsService()
 minio_client = MinioClient()
 
@@ -58,7 +60,7 @@ async def get_clients(
             clients = filtered_clients
 
         for client in clients:
-            await _add_config_urls(client, protocol or "amneziawg")
+            await _add_config_urls(client, protocol or settings.default_protocol)
 
         logger.info(f"Retrieved {len(clients)} clients successfully")
         return [ClientResponse(**client) for client in clients]

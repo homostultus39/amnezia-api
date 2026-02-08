@@ -1,4 +1,5 @@
 import asyncio
+import docker
 from typing import Optional
 from src.management.logger import configure_logger
 
@@ -6,8 +7,15 @@ logger = configure_logger("HostService", "cyan")
 
 
 class HostService:
-    @staticmethod
-    async def run_command(cmd: str, timeout: int = 2000, check: bool = True) -> tuple[str, str]:
+    def __init__(self):
+        try:
+            self.docker_client = docker.from_env()
+            logger.debug("Docker client initialized successfully")
+        except Exception as exc:
+            logger.error(f"Failed to initialize Docker client: {exc}")
+            raise RuntimeError(f"Docker client initialization failed: {exc}")
+
+    async def run_command(self, cmd: str, timeout: int = 2000, check: bool = True) -> tuple[str, str]:
         logger.debug(f"Executing host command: {cmd}")
 
         process = await asyncio.create_subprocess_shell(
@@ -38,54 +46,52 @@ class HostService:
 
         return stdout_decoded, stderr_decoded
 
-    @staticmethod
-    async def list_running_containers() -> set[str]:
+    async def list_running_containers(self) -> set[str]:
         try:
-            stdout, _ = await HostService.run_command(
-                "docker ps --format '{{.Names}}'",
-                timeout=1500,
-                check=False
-            )
-
-            containers = set(
-                line.strip()
-                for line in stdout.split("\n")
-                if line.strip()
-            )
-
-            logger.debug(f"Found {len(containers)} running containers")
-            return containers
-
+            containers = await asyncio.to_thread(self.docker_client.containers.list)
+            container_names = {container.name for container in containers}
+            logger.debug(f"Found {len(container_names)} running containers: {container_names}")
+            return container_names
         except Exception as e:
             logger.warning(f"Failed to list Docker containers: {e}")
             return set()
 
-    @staticmethod
-    async def is_container_running(container_name: str) -> bool:
+    async def is_container_running(self, container_name: str) -> bool:
         if not container_name:
+            logger.warning("Empty container name provided")
             return False
 
-        containers = await HostService.list_running_containers()
-        return container_name in containers
+        containers = await self.list_running_containers()
+        is_running = container_name in containers
+        logger.debug(f"Container {container_name} running: {is_running}")
+        return is_running
 
-    @staticmethod
-    async def get_container_port(container_name: str, protocol: str = "udp") -> Optional[int]:
+    async def get_container_port(self, container_name: str, protocol: str = "udp") -> Optional[int]:
         try:
-            cmd = f"docker port {container_name} | grep '{protocol}' | head -1 | cut -d ':' -f 2"
-            stdout, _ = await HostService.run_command(cmd, timeout=1500, check=False)
+            container = await asyncio.to_thread(self.docker_client.containers.get, container_name)
+            ports = container.attrs.get("NetworkSettings", {}).get("Ports", {})
 
-            if stdout:
-                return int(stdout)
+            logger.debug(f"Container {container_name} ports: {ports}")
 
+            for port_spec, bindings in ports.items():
+                if protocol in port_spec.lower() and bindings:
+                    host_port = bindings[0].get("HostPort")
+                    if host_port:
+                        logger.debug(f"Found {protocol} port {host_port} for {container_name}")
+                        return int(host_port)
+
+            logger.warning(f"No {protocol} port found for container {container_name}")
             return None
 
+        except docker.errors.NotFound:
+            logger.warning(f"Container {container_name} not found")
+            return None
         except Exception as e:
             logger.warning(f"Failed to get port for container {container_name}: {e}")
             return None
 
-    @staticmethod
-    async def read_file(path: str) -> str:
-        stdout, _ = await HostService.run_command(f"cat {path}")
+    async def read_file(self, path: str) -> str:
+        stdout, _ = await self.run_command(f"cat {path}")
         return stdout
 
     @staticmethod

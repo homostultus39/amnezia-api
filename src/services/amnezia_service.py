@@ -49,11 +49,13 @@ class AmneziaService(BaseProtocolService):
         "PersistentKeepalive = {KEEPALIVE}\n"
     )
 
-    def __init__(self):
+    def __init__(self, protocol_name: str | None = None):
+        self.settings = get_settings()
         self.connection = AmneziaConnection()
-        self._protocol_name = "amneziawg"
+        self._protocol_name = protocol_name or self.settings.default_protocol
         self.config_storage = MinioClient()
         self.config_generator = AmneziaConfigGenerator()
+        self._awg_params_defaults = json.loads(self.settings.awg_junk_params)
 
     @property
     def protocol_name(self) -> str:
@@ -77,13 +79,24 @@ class AmneziaService(BaseProtocolService):
             peers_dict = {}
             for peer in client.peers:
                 wg_peer = peers_data.get(peer.public_key, {})
+                last_handshake = wg_peer.get("last_handshake")
+                online = False
+                if last_handshake:
+                    try:
+                        last_hs = int(last_handshake)
+                        current_time = int(datetime.now().timestamp())
+                        time_diff = current_time - last_hs
+                        online = time_diff < self.settings.peer_online_threshold_seconds
+                    except (ValueError, TypeError):
+                        pass
+
                 peers_dict[peer.app_type] = {
                     "id": str(peer.id),
                     "endpoint": wg_peer.get("endpoint") or peer.endpoint,
                     "protocol": self.protocol_name,
                     "url": None,
-                    "online": wg_peer.get("online", False),
-                    "last_handshake": wg_peer.get("last_handshake"),
+                    "online": online,
+                    "last_handshake": last_handshake,
                 }
 
             client_list.append({
@@ -119,7 +132,7 @@ class AmneziaService(BaseProtocolService):
             online = False
             if last_handshake:
                 time_diff = (datetime.now() - last_handshake).total_seconds()
-                online = time_diff < 180
+                online = time_diff < self.settings.peer_online_threshold_seconds
 
             peers[public_key] = {
                 "endpoint": endpoint,
@@ -272,7 +285,7 @@ class AmneziaService(BaseProtocolService):
             subnet_base = subnet_match.group(1).rsplit('.', 1)[0]
             subnet_address = f"{subnet_base}.0"
         else:
-            subnet_address = "10.8.1.0"
+            subnet_address = self.settings.default_subnet_address
 
         client_ip = (
             allowed_ip if allowed_ip.endswith("/32") else f"{allowed_ip.split('/')[0]}/32"
@@ -289,11 +302,12 @@ class AmneziaService(BaseProtocolService):
             awg_params=awg_params,
             server_endpoint=settings.server_public_host,
             server_port=server_port,
-            primary_dns="1.1.1.1",
-            secondary_dns="1.0.0.1",
+            primary_dns=self.settings.primary_dns,
+            secondary_dns=self.settings.secondary_dns,
             container_name=settings.amnezia_container_name,
             description=username,
             subnet_address=subnet_address,
+            persistent_keepalive=self.settings.persistent_keepalive_seconds,
         )
 
         try:
@@ -318,8 +332,8 @@ class AmneziaService(BaseProtocolService):
 
         text_config = self.AMNEZIAWG_CLIENT_TEMPLATE.format(
             CLIENT_ADDRESS=allowed_ip.split("/")[0],
-            PRIMARY_DNS="1.1.1.1",
-            SECONDARY_DNS="1.0.0.1",
+            PRIMARY_DNS=self.settings.primary_dns,
+            SECONDARY_DNS=self.settings.secondary_dns,
             CLIENT_PRIVATE_KEY=private_key,
             JC=awg_params.get("Jc", ""),
             JMIN=awg_params.get("Jmin", ""),
@@ -333,7 +347,7 @@ class AmneziaService(BaseProtocolService):
             SERVER_PUBLIC_KEY=server_public_key,
             PRESHARED_KEY=psk,
             ENDPOINT_LINE=endpoint_line,
-            KEEPALIVE="25",
+            KEEPALIVE=str(self.settings.persistent_keepalive_seconds),
         )
 
         logger.debug("Generated text config for AmneziaWG App")
@@ -389,24 +403,7 @@ class AmneziaService(BaseProtocolService):
             logger.warning(f"Failed to delete config from MinIO: {exc}")
 
     def _extract_awg_params(self, wg_config: str) -> dict:
-        params = {
-            "H1": "",
-            "H2": "",
-            "H3": "",
-            "H4": "",
-            "I1": "",
-            "I2": "",
-            "I3": "",
-            "I4": "",
-            "I5": "",
-            "Jc": "5",
-            "Jmin": "10",
-            "Jmax": "50",
-            "S1": "0",
-            "S2": "0",
-            "S3": "0",
-            "S4": "0",
-        }
+        params = self._awg_params_defaults.copy()
 
         param_mapping = {
             "H1": r"^\s*#?\s*H1\s*=\s*(.+)$",

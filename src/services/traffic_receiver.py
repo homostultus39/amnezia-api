@@ -61,7 +61,9 @@ class TrafficReceiver:
             online = False
             if last_handshake:
                 time_diff = (datetime.now() - last_handshake).total_seconds()
-                online = time_diff < 180
+                from src.management.settings import get_settings
+                settings = get_settings()
+                online = time_diff < settings.peer_online_threshold_seconds
 
             allowed_ips = [ip.strip() for ip in allowed_ips_str.split(",") if ip.strip()]
 

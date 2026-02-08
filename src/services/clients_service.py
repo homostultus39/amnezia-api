@@ -12,6 +12,7 @@ from src.database.management.operations.client import (
     create_client,
     delete_client as delete_client_op,
 )
+from src.management.settings import get_settings
 from src.management.logger import configure_logger
 
 logger = configure_logger("ClientsService", "yellow")
@@ -19,8 +20,9 @@ logger = configure_logger("ClientsService", "yellow")
 
 class ClientsService:
     def __init__(self):
+        self.settings = get_settings()
         self._services: dict[str, BaseProtocolService] = {
-            "amneziawg": AmneziaService(),
+            self.settings.default_protocol: AmneziaService(),
         }
 
     def _get_service(self, protocol: str) -> BaseProtocolService:
@@ -61,7 +63,7 @@ class ClientsService:
 
         if not client:
             if not expires_at:
-                expires_at = datetime.now() + timedelta(days=30)
+                expires_at = datetime.now() + timedelta(days=self.settings.client_default_expiration_days)
 
             client = await create_client(session, username, expires_at)
 
@@ -96,7 +98,7 @@ class ClientsService:
         }
 
     async def delete_client(self, session: AsyncSession, client_id: UUID) -> bool:
-        service = self._get_service("amneziawg")
+        service = self._get_service(self.settings.default_protocol)
 
         client = await get_client_by_id_with_peers(session, client_id)
         if not client:

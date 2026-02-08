@@ -10,8 +10,10 @@ from src.services.utils.config_storage import get_config_object_name
 from src.minio.client import MinioClient
 from src.services.peers_service import PeersService
 from src.services.amnezia_service import AmneziaService
+from src.management.settings import get_settings
 
 router = APIRouter()
+settings = get_settings()
 peers_service = PeersService()
 minio_client = MinioClient()
 amnezia_service = AmneziaService()
@@ -42,7 +44,7 @@ async def update_peer(
             )
 
         old_app_type = peer.app_type
-        old_protocol = "amneziawg"
+        old_protocol = settings.default_protocol
         client = peer.client
 
         await amnezia_service.remove_peer_from_config(peer.public_key)
