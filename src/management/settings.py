@@ -15,10 +15,6 @@ class Settings(BaseSettings):
     postgres_port: int
     postgres_db: str
 
-    redis_password: str
-    redis_host: str
-    redis_port: int
-    redis_db: int = 0
 
     minio_internal_host: str
     minio_public_host: str

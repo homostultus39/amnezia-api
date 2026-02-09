@@ -4,7 +4,6 @@ from alembic import command
 from alembic.config import Config
 
 from src.management.logger import configure_logger
-from src.api.v1.auth.router import router as auth_router
 from src.api.v1.clients.router import router as clients_router
 from src.api.v1.peers.router import router as peers_router
 from src.api.v1.server.router import router as server_router
@@ -43,11 +42,6 @@ app = FastAPI(
     swagger_ui_parameters={"persistAuthorization": True},
 )
 
-app.include_router(
-    auth_router,
-    prefix="/auth",
-    tags=["Authorization"]
-)
 
 app.include_router(
     clients_router,
