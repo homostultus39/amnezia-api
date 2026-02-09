@@ -11,7 +11,7 @@ def get_minio_client() -> Minio:
     global _minio_client
     if _minio_client is None:
         _minio_client = Minio(
-            settings.minio_host,
+            settings.minio_internal_host,
             access_key=settings.minio_access_key,
             secret_key=settings.minio_secret_key,
             secure=settings.minio_secure,

@@ -2,6 +2,7 @@ import asyncio
 import io
 from datetime import timedelta
 from typing import Optional
+from urllib.parse import urlparse, urlunparse
 
 from minio.error import S3Error
 
@@ -78,12 +79,33 @@ class MinioClient:
         expires = timedelta(
             seconds=expires_seconds or settings.minio_presigned_expires_seconds
         )
-        return await self._run(
+
+        internal_url = await self._run(
             self._client.presigned_get_object,
             self.bucket_name,
             object_name,
             expires=expires,
         )
+
+        public_url = self._replace_host(internal_url, settings.minio_public_host)
+        logger.debug(f"Generated presigned URL: {public_url}")
+        return public_url
+
+    def _replace_host(self, url: str, new_host: str) -> str:
+        """Replace internal host with public host in URL"""
+        parsed = urlparse(url)
+        public_parsed = urlparse(new_host if '://' in new_host else f'http://{new_host}')
+
+        new_url = urlunparse((
+            public_parsed.scheme or parsed.scheme,
+            public_parsed.netloc or new_host,
+            parsed.path,
+            parsed.params,
+            parsed.query,
+            parsed.fragment
+        ))
+
+        return new_url
 
     async def is_available(self) -> bool:
         try:

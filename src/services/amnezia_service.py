@@ -168,7 +168,7 @@ class AmneziaService(BaseProtocolService):
         await self.connection.sync_wg_config()
 
         config_payload = await self._generate_config_payload(
-            app_type, private_key, public_key, allocated_ip, client.username, server_port
+            app_type, private_key, public_key, allocated_ip, server_port
         )
 
         config_storage = await self._store_config(client.id, app_type, config_payload["config"])
@@ -267,7 +267,7 @@ class AmneziaService(BaseProtocolService):
         raise ValueError("ListenPort not found in WireGuard config")
 
     async def _generate_config_uri(
-        self, private_key: str, public_key: str, allowed_ip: str, username: str, server_port: int
+        self, private_key: str, public_key: str, allowed_ip: str, server_port: int
     ) -> str:
         server_public_key = await self.connection.read_server_public_key()
         psk = await self.connection.read_preshared_key()
@@ -286,7 +286,7 @@ class AmneziaService(BaseProtocolService):
             allowed_ip if allowed_ip.endswith("/32") else f"{allowed_ip.split('/')[0]}/32"
         )
 
-        logger.debug(f"AWG params for {username}: {awg_params}")
+        logger.debug(f"AWG params: {awg_params}")
 
         config_uri = self.config_generator.generate_amnezia_vpn_config(
             client_private_key=private_key,
@@ -300,16 +300,16 @@ class AmneziaService(BaseProtocolService):
             primary_dns=self.settings.primary_dns,
             secondary_dns=self.settings.secondary_dns,
             container_name=settings.amnezia_container_name,
-            description=username,
+            description=self.settings.server_display_name,
             subnet_address=subnet_address,
             persistent_keepalive=self.settings.persistent_keepalive_seconds,
         )
 
         try:
             self.config_generator.decode_vpn_link(config_uri)
-            logger.debug(f"Config validated for {username}, length: {len(config_uri)}")
+            logger.debug(f"Config validated, length: {len(config_uri)}")
         except Exception as e:
-            logger.error(f"Config validation failed for {username}: {e}")
+            logger.error(f"Config validation failed: {e}")
             raise
 
         return config_uri
@@ -354,12 +354,11 @@ class AmneziaService(BaseProtocolService):
         private_key: str,
         public_key: str,
         allowed_ip: str,
-        username: str,
         server_port: int,
     ) -> dict:
         if app_type == AppType.AMNEZIA_VPN.value:
             config_uri = await self._generate_config_uri(
-                private_key, public_key, allowed_ip, username, server_port
+                private_key, public_key, allowed_ip, server_port
             )
             return {
                 "type": AppType.AMNEZIA_VPN.value,

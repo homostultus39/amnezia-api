@@ -23,7 +23,8 @@ class Settings(BaseSettings):
     redis_port: int
     redis_db: int = 0
 
-    minio_host: str
+    minio_internal_host: str
+    minio_public_host: str
     minio_access_key: str
     minio_secret_key: str
     minio_bucket: str = "amnezia-configs"
@@ -37,6 +38,7 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
 
     server_public_host: str
+    server_display_name: str = "AmneziaWG Server"
     protocols_enabled: Optional[str] = None
 
     amnezia_container_name: str
