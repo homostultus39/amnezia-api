@@ -1,8 +1,7 @@
 from fastapi import APIRouter, HTTPException, status
 
 from src.api.v1.peers.logger import logger
-from src.api.v1.peers.schemas import CreatePeerRequest, CreatePeerResponse
-from src.management.constants import AppType
+from src.api.v1.peers.schemas import CreatePeerRequest, CreatePeerResponse, AppType
 from src.services.management.protocol_factory import create_protocol_service
 
 router = APIRouter()
