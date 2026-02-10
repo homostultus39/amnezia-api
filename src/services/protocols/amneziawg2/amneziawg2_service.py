@@ -147,8 +147,33 @@ class AmneziaWG2Service(BaseProtocolService):
         await self.connection.write_protocol_config(wg_config + peer_section)
 
     def _remove_peer_from_raw_config(self, config: str, public_key: str) -> str:
-        peer_pattern = rf"\[Peer\].*?PublicKey\s*=\s*{re.escape(public_key)}.*?(?=\n\[|$)"
-        return re.sub(peer_pattern, "", config, flags=re.DOTALL)
+        peer_section_pattern = re.compile(
+            r"(?ms)^\s*\[Peer\]\s*$.*?(?=^\s*\[[^\]]+\]\s*$|\Z)"
+        )
+
+        result_parts: list[str] = []
+        last_index = 0
+        removed_any = False
+
+        for match in peer_section_pattern.finditer(config):
+            section = match.group(0)
+            key_match = re.search(
+                r"^\s*PublicKey\s*=\s*(\S+)\s*$",
+                section,
+                flags=re.MULTILINE,
+            )
+            if not key_match or key_match.group(1).strip() != public_key:
+                continue
+
+            result_parts.append(config[last_index:match.start()])
+            last_index = match.end()
+            removed_any = True
+
+        if not removed_any:
+            return config
+
+        result_parts.append(config[last_index:])
+        return "".join(result_parts)
 
     async def _allocate_ip_address(self) -> str:
         wg_config = await self.connection.read_protocol_config()
