@@ -2,16 +2,20 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Depends
 
 from src.management.logger import configure_logger
+from src.management.settings import get_settings
 from src.api.v1.peers.router import router as peers_router
 from src.api.v1.server.router import router as server_router
 from src.api.v1.deps.middlewares.auth import get_current_api_key
 from src.management.security import get_api_key_storage
+from src.services.sync_scheduler import SyncScheduler
 from src.services.management.protocol_factory import (
     get_available_protocols,
     load_protocol_config,
 )
 
 logger = configure_logger("MAIN", "cyan")
+settings = get_settings()
+sync_scheduler = SyncScheduler()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -20,15 +24,23 @@ async def lifespan(app: FastAPI):
     logger.info(f"Loaded protocols: {get_available_protocols()}")
     api_key = get_api_key_storage().get_api_key()
     logger.info(f"The API key was successfully installed: {api_key}")
+    await sync_scheduler.start()
     yield
+    await sync_scheduler.stop()
     logger.info("Shutting down Amnezia API...")
 
+docs_url = "/docs" if settings.development else None
+redoc_url = "/redoc" if settings.development else None
+openapi_url = "/openapi.json" if settings.development else None
 
 app = FastAPI(
     title="Amnezia API",
     version="1.0.0",
     lifespan=lifespan,
     root_path="/api/v1",
+    docs_url=docs_url,
+    redoc_url=redoc_url,
+    openapi_url=openapi_url,
     swagger_ui_parameters={"persistAuthorization": True},
 )
 

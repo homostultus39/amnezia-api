@@ -33,7 +33,7 @@ async def list_peers(
 
         peers = []
         for peer in peers_data:
-            if app_type and peer.get("app_type") and peer.get("app_type") != app_type:
+            if app_type and peer.get("app_type") != app_type:
                 continue
 
             if online_only and not peer.get("online"):
@@ -43,6 +43,7 @@ async def list_peers(
                 ListPeerResponse(
                     public_key=peer["public_key"],
                     allocated_ip=peer["allowed_ips"][0] if peer.get("allowed_ips") else "N/A",
+                    app_type=peer.get("app_type"),
                     protocol=protocol_name,
                     endpoint=peer.get("endpoint") or "N/A",
                     online=peer.get("online", False),

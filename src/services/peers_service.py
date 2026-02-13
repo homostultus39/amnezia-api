@@ -5,9 +5,11 @@ from datetime import datetime, timezone
 
 from src.management.logger import configure_logger
 from src.management.settings import get_settings
+from src.services.host_service import HostService
 from src.services.management.protocol_factory import (
     create_protocol_service,
     get_available_protocols,
+    get_protocol_config,
 )
 
 
@@ -17,6 +19,11 @@ logger = configure_logger("PeersService", "cyan")
 class PeersService:
     def __init__(self):
         self.settings = get_settings()
+        try:
+            self.host_service = HostService()
+        except Exception as exc:
+            logger.warning(f"HostService is unavailable: {exc}")
+            self.host_service = None
 
     def _get_service(self, protocol: str):
         try:
@@ -88,18 +95,29 @@ class PeersService:
 
     async def get_status_snapshot(self, protocol: str) -> dict:
         peers = await self.get_peers(protocol)
+        container_name, container_status = await self._get_container_state(protocol)
         return {
             "protocol": protocol,
+            "container_name": container_name,
+            "container_status": container_status,
             "peers": peers,
             "server_traffic": self._build_total_traffic(peers),
         }
 
     async def sync_peers_status(
         self,
-        central_api_url: str,
-        api_key: str,
+        central_api_url: str | None = None,
+        api_key: str | None = None,
         protocols: list[str] | None = None,
     ) -> int:
+        sync_url = (central_api_url or self.settings.central_api_url or "").strip()
+        sync_api_key = (api_key or self.settings.central_cluster_api_key or "").strip()
+        cluster_id = (self.settings.cluster_id or "").strip()
+
+        if not sync_url or not sync_api_key or not cluster_id:
+            logger.debug("Sync skipped: CENTRAL_API_URL/CENTRAL_CLUSTER_API_KEY/CLUSTER_ID are not fully configured")
+            return 0
+
         target_protocols = protocols or get_available_protocols()
         payloads = []
 
@@ -112,11 +130,16 @@ class PeersService:
             logger.debug("No protocols to sync")
             return 0
 
-        headers = {"X-API-Key": api_key}
+        headers = {"X-API-Key": sync_api_key}
+        bearer_token = (self.settings.central_admin_bearer_token or "").strip()
+        if bearer_token:
+            headers["Authorization"] = f"Bearer {bearer_token}"
+
+        sync_base_url = sync_url.rstrip("/")
         async with httpx.AsyncClient(timeout=30.0) as client:
             for payload in payloads:
                 response = await client.post(
-                    f"{central_api_url}/clusters/{self.settings.cluster_id}/peers/status",
+                    f"{sync_base_url}/clusters/{cluster_id}/sync",
                     json=payload,
                     headers=headers,
                 )
@@ -153,6 +176,16 @@ class PeersService:
             "total_peers": len(peers),
             "online_peers": sum(1 for peer in peers if peer.get("online", False)),
         }
+
+    async def _get_container_state(self, protocol: str) -> tuple[str | None, str]:
+        protocol_config = get_protocol_config(protocol)
+        container_name = protocol_config.get("container_name")
+        if not container_name:
+            return None, "unknown"
+        if self.host_service is None:
+            return container_name, "unknown"
+        is_running = await self.host_service.is_container_running(container_name)
+        return container_name, "running" if is_running else "stopped"
 
 @lru_cache
 def get_peers_service() -> PeersService:

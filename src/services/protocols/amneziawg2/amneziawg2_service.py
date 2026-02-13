@@ -17,6 +17,7 @@ logger = configure_logger("AmneziaWG2Service", "green")
 class AmneziaWG2Service(BaseProtocolService):
     AMNEZIA_VPN_APP_TYPE = "amnezia_vpn"
     AMNEZIA_WG_APP_TYPE = "amnezia_wg"
+    APP_TYPE_METADATA_KEY = "AppType"
     AMNEZIAWG_CLIENT_TEMPLATE = (
         "[Interface]\n"
         "Address = {CLIENT_ADDRESS}/32\n"
@@ -46,6 +47,7 @@ class AmneziaWG2Service(BaseProtocolService):
         self.protocol_config = self._connection.protocol_config
         self.config_generator = AmneziaWG2ConfigGenerator()
         self._awg_params_defaults = dict(self.protocol_config.get("awg_junk_params", {}))
+        self._default_app_type = self._resolve_default_app_type()
 
     @property
     def protocol_name(self) -> str:
@@ -58,12 +60,15 @@ class AmneziaWG2Service(BaseProtocolService):
     async def get_peers(self) -> list[dict]:
         dump_output = await self.connection.get_peers_dump()
         peers_data = self._parse_wg_dump(dump_output)
+        wg_config = await self.connection.read_protocol_config()
+        app_types_by_public_key = self._extract_peer_app_types(wg_config)
 
         peers = []
         for public_key, data in peers_data.items():
             peers.append(
                 {
                     "public_key": public_key,
+                    "app_type": app_types_by_public_key.get(public_key, self._default_app_type),
                     "endpoint": data["endpoint"],
                     "allowed_ips": data["allowed_ips"],
                     "last_handshake": (
@@ -97,7 +102,7 @@ class AmneziaWG2Service(BaseProtocolService):
         server_port = await self._get_server_port()
         endpoint = f"{self.settings.server_public_host}:{server_port}"
 
-        await self._add_peer_to_config(public_key, allocated_ip)
+        await self._add_peer_to_config(public_key, allocated_ip, normalized_app_type)
         await self.connection.sync_config()
 
         config_payload = await self._generate_config_payload(
@@ -133,16 +138,20 @@ class AmneziaWG2Service(BaseProtocolService):
         return True
 
     async def add_peer_to_config(self, public_key: str, allowed_ip: str) -> None:
-        await self._add_peer_to_config(public_key, allowed_ip)
+        await self._add_peer_to_config(public_key, allowed_ip, self._default_app_type)
 
     async def remove_peer_from_config(self, public_key: str) -> bool:
         return await self.delete_peer(public_key)
 
-    async def _add_peer_to_config(self, public_key: str, allowed_ip: str) -> None:
+    async def _add_peer_to_config(self, public_key: str, allowed_ip: str, app_type: str) -> None:
         wg_config = await self.connection.read_protocol_config()
         psk = await self.connection.read_preshared_key()
         peer_section = (
-            f"\n[Peer]\nPublicKey = {public_key}\nPresharedKey = {psk}\nAllowedIPs = {allowed_ip}\n"
+            f"\n[Peer]\n"
+            f"# {self.APP_TYPE_METADATA_KEY} = {app_type}\n"
+            f"PublicKey = {public_key}\n"
+            f"PresharedKey = {psk}\n"
+            f"AllowedIPs = {allowed_ip}\n"
         )
         await self.connection.write_protocol_config(wg_config + peer_section)
 
@@ -388,3 +397,44 @@ class AmneziaWG2Service(BaseProtocolService):
         if normalized in {"amnezia_wg", "wg", "amneziawg"}:
             return self.AMNEZIA_WG_APP_TYPE
         raise ValueError(f"Unsupported app_type: {app_type}")
+
+    def _extract_peer_app_types(self, wg_config: str) -> dict[str, str]:
+        peer_section_pattern = re.compile(
+            r"(?ms)^\s*\[Peer\]\s*$.*?(?=^\s*\[[^\]]+\]\s*$|\Z)"
+        )
+        app_types_by_public_key: dict[str, str] = {}
+
+        for match in peer_section_pattern.finditer(wg_config):
+            section = match.group(0)
+            public_key_match = re.search(
+                r"^\s*PublicKey\s*=\s*(\S+)\s*$",
+                section,
+                flags=re.MULTILINE,
+            )
+            if not public_key_match:
+                continue
+
+            metadata_match = re.search(
+                rf"^\s*#?\s*{self.APP_TYPE_METADATA_KEY}\s*=\s*(\S+)\s*$",
+                section,
+                flags=re.MULTILINE,
+            )
+            if metadata_match:
+                raw_app_type = metadata_match.group(1).strip()
+                try:
+                    normalized_app_type = self._normalize_app_type(raw_app_type)
+                except ValueError:
+                    normalized_app_type = self._default_app_type
+            else:
+                normalized_app_type = self._default_app_type
+
+            app_types_by_public_key[public_key_match.group(1).strip()] = normalized_app_type
+
+        return app_types_by_public_key
+
+    def _resolve_default_app_type(self) -> str:
+        raw_default = self.protocol_config.get("default_app_type", self.AMNEZIA_WG_APP_TYPE)
+        try:
+            return self._normalize_app_type(str(raw_default))
+        except ValueError:
+            return self.AMNEZIA_WG_APP_TYPE
