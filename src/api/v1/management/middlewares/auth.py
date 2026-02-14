@@ -1,7 +1,7 @@
 from fastapi import Depends, Request
 from fastapi.security import APIKeyHeader
 
-from src.api.v1.deps.exceptions.auth import InvalidApiKeyException
+from src.api.v1.management.exceptions.auth import InvalidApiKeyException
 from src.management.security import get_api_key_storage
 
 api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)

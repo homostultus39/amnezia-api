@@ -13,7 +13,7 @@ from src.services.management.protocol_factory import (
     get_protocol_config,
 )
 
-router = APIRouter(prefix="/server", tags=["Server"])
+router = APIRouter()
 
 try:
     host_service = HostService()

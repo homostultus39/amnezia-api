@@ -2,8 +2,7 @@ from fastapi import APIRouter, HTTPException, status
 
 from src.api.v1.peers.logger import logger
 from src.api.v1.peers.schemas import UpdatePeerRequest, UpdatePeerResponse
-from src.services.management.protocol_factory import create_protocol_service
-from src.api.v1.peers.utils import resolve_active_protocol_name
+from src.services.management.protocol_factory import create_protocol_service, get_active_protocol_name
 
 
 router = APIRouter()
@@ -18,7 +17,7 @@ async def update_peer(payload: UpdatePeerRequest) -> UpdatePeerResponse:
     """Recreate a peer with a new application type while preserving its allocated IP address."""
     try:
         public_key = payload.public_key.strip()
-        protocol_name = resolve_active_protocol_name()
+        protocol_name = get_active_protocol_name()
         service = create_protocol_service(protocol_name)
         peers_data = await service.get_peers()
 

@@ -4,8 +4,7 @@ from fastapi import APIRouter, HTTPException, status
 
 from src.api.v1.peers.logger import logger
 from src.api.v1.peers.schemas import ListPeerResponse, AppType
-from src.services.management.protocol_factory import create_protocol_service
-from src.api.v1.peers.utils import resolve_active_protocol_name
+from src.services.management.protocol_factory import create_protocol_service, get_active_protocol_name
 
 router = APIRouter()
 
@@ -27,7 +26,7 @@ async def list_peers(
             except ValueError:
                 raise ValueError(f"Invalid app_type: {app_type}")
 
-        protocol_name = resolve_active_protocol_name()
+        protocol_name = get_active_protocol_name()
         service = create_protocol_service(protocol_name)
         peers_data = await service.get_peers()
 

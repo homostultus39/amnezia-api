@@ -5,7 +5,7 @@ from src.management.logger import configure_logger
 from src.management.settings import get_settings
 from src.api.v1.peers.router import router as peers_router
 from src.api.v1.server.router import router as server_router
-from src.api.v1.deps.middlewares.auth import get_current_api_key
+from src.api.v1.management.middlewares.auth import get_current_api_key
 from src.management.security import get_api_key_storage
 from src.services.sync_scheduler import SyncScheduler
 from src.services.management.protocol_factory import (
@@ -44,11 +44,15 @@ app = FastAPI(
 
 app.include_router(
     peers_router,
+    prefix="/peers",
+    tags=["Peers"],
     dependencies=[Depends(get_current_api_key)]
 )
 
 app.include_router(
     server_router,
+    prefix="/server",
+    tags=["Server"],
     dependencies=[Depends(get_current_api_key)]
 )
 
