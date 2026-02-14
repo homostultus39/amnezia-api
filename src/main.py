@@ -29,18 +29,15 @@ async def lifespan(app: FastAPI):
     await sync_scheduler.stop()
     logger.info("Shutting down Amnezia API...")
 
-docs_url = "/docs" if settings.development else None
-redoc_url = "/redoc" if settings.development else None
-openapi_url = "/openapi.json" if settings.development else None
 
 app = FastAPI(
     title="Amnezia API",
     version="1.0.0",
     lifespan=lifespan,
     root_path="/api/v1",
-    docs_url=docs_url,
-    redoc_url=redoc_url,
-    openapi_url=openapi_url,
+    docs_url="/docs" if settings.development else None,
+    redoc_url="/redoc" if settings.development else None,
+    openapi_url="/openapi.json" if settings.development else None,
     swagger_ui_parameters={"persistAuthorization": True},
 )
 
