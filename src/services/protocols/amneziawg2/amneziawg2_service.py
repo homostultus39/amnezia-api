@@ -28,10 +28,17 @@ class AmneziaWG2Service(BaseProtocolService):
         "Jmax = {JMAX}\n"
         "S1 = {S1}\n"
         "S2 = {S2}\n"
+        "S3 = {S3}\n"
+        "S4 = {S4}\n"
         "H1 = {H1}\n"
         "H2 = {H2}\n"
         "H3 = {H3}\n"
-        "H4 = {H4}\n\n"
+        "H4 = {H4}\n"
+        "I1 = {I1}\n"
+        "I2 = {I2}\n"
+        "I3 = {I3}\n"
+        "I4 = {I4}\n"
+        "I5 = {I5}\n\n"
         "[Peer]\n"
         "PublicKey = {SERVER_PUBLIC_KEY}\n"
         "PresharedKey = {PRESHARED_KEY}\n"
@@ -280,10 +287,17 @@ class AmneziaWG2Service(BaseProtocolService):
             JMAX=awg_params.get("Jmax", ""),
             S1=awg_params.get("S1", ""),
             S2=awg_params.get("S2", ""),
+            S3=awg_params.get("S3", ""),
+            S4=awg_params.get("S4", ""),
             H1=awg_params.get("H1", ""),
             H2=awg_params.get("H2", ""),
             H3=awg_params.get("H3", ""),
             H4=awg_params.get("H4", ""),
+            I1=awg_params.get("I1", ""),
+            I2=awg_params.get("I2", ""),
+            I3=awg_params.get("I3", ""),
+            I4=awg_params.get("I4", ""),
+            I5=awg_params.get("I5", ""),
             SERVER_PUBLIC_KEY=server_public_key,
             PRESHARED_KEY=psk,
             ENDPOINT_LINE=endpoint_line,
